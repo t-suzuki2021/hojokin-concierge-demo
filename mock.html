@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex">
+<title>AI導入補助金コンシェルジュ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Sans:wght@500;600;700&display=swap">
+<style>
+/* Layout: a top bar switches three views. Overview is one reading column.
+   Staff is a sidebar + work area (today, cases, customers, help, integrations, settings).
+   Client is a 400px phone column with reviewer notes beside it.
+   A six-step timeline (検討→申請→交付決定→事業実施→実績報告→補助金入金) appears on every case, on both sides. */
+:root{
+  --bg:#F3F6F6; --surface:#FFFFFF; --sunk:#E9EFEF; --fg:#172024; --body:#434C53; --muted:#67727A; --line:#D5DDDE; --line-2:#E6ECEC;
+  --brand-l:#0E5C63; --brand-d:#63B7BE; --brand-pale-l:#E0EEEE; --brand-pale-d:#17302F;
+  --brand:var(--brand-l); --brand-pale:var(--brand-pale-l); --on-brand:#FFFFFF;
+  --amber:#8A4A0C; --amber-pale:#F8ECDD;
+  --ok:#1B7448; --ok-pale:#DDF1E5; --warn:#B3362B; --warn-pale:#F9E3E0; --info:#2C4A8A; --info-pale:#E5EBF8;
+  --shadow:0 1px 2px rgba(16,32,36,.06),0 10px 28px rgba(16,32,36,.07);
+  --num:'IBM Plex Sans','Noto Sans JP',system-ui,sans-serif; --jp:'Noto Sans JP','Yu Gothic UI','Hiragino Sans',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1516; --surface:#162022; --sunk:#111A1C; --fg:#E9EFEF; --body:#C2CBCC; --muted:#8C9899; --line:#2B3739; --line-2:#212C2E;
+  --brand:var(--brand-d); --brand-pale:var(--brand-pale-d); --on-brand:#0E1516;
+  --amber:#E8AC70; --amber-pale:#3A2A16;
+  --ok:#5CCB8B; --ok-pale:#153826; --warn:#F08A7E; --warn-pale:#3F1F1B; --info:#8FB0F0; --info-pale:#1B2946;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0E1516; --surface:#162022; --sunk:#111A1C; --fg:#E9EFEF; --body:#C2CBCC; --muted:#8C9899; --line:#2B3739; --line-2:#212C2E;
+  --brand:var(--brand-d); --brand-pale:var(--brand-pale-d); --on-brand:#0E1516;
+  --amber:#E8AC70; --amber-pale:#3A2A16;
+  --ok:#5CCB8B; --ok-pale:#153826; --warn:#F08A7E; --warn-pale:#3F1F1B; --info:#8FB0F0; --info-pale:#1B2946;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35); color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--jp);font-size:14px;line-height:1.65;
+  padding-block:0 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4,p,ul,ol{margin:0}
+h1,h2,h3,h4{line-height:1.35;text-wrap:balance}
+ul,ol{padding:0;list-style:none}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:var(--brand)}
+input[type=text],input[type=email],input[type=number],input[type=search],select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{line-height:1.65;resize:vertical}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.s{width:15px;height:15px}
+.ic.l{width:22px;height:22px}
+.muted{color:var(--muted)}
+.tiny{font-size:12px;color:var(--muted)}
+.bodyt{font-size:13.5px;color:var(--body)}
+
+/* top bar */
+.top{max-width:1180px;margin:0 auto 24px;display:flex;align-items:center;gap:12px 18px;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;line-height:1.3}
+.logo-mark{width:32px;height:32px;border-radius:9px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center}
+.logo small{display:block;font-size:10.5px;color:var(--muted);font-weight:500;letter-spacing:.06em}
+.views{display:flex;gap:4px;background:var(--sunk);border-radius:10px;padding:4px;max-width:100%;overflow-x:auto}
+.views button{border:0;background:transparent;border-radius:7px;padding:7px 14px;font-weight:700;font-size:13px;color:var(--muted);white-space:nowrap}
+@media (max-width:420px){.views{gap:2px}.views button{padding:7px 6px;font-size:12px}}
+.views button[aria-current=true]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.14)}
+.tenant{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.tenant select{width:auto;padding:6px 8px;font-size:12.5px}
+
+/* buttons, chips, cards */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid transparent;border-radius:9px;padding:9px 16px;font-weight:700;font-size:14px;line-height:1.3;text-align:center;white-space:nowrap;text-decoration:none}
+.btn.p{background:var(--brand);color:var(--on-brand)}
+.btn.o{background:transparent;color:var(--brand);border-color:var(--brand)}
+.btn.g{background:var(--sunk);color:var(--body)}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn.lg{padding:13px 20px;font-size:15px}
+.btn.block{width:100%;white-space:normal}
+.btn:disabled{opacity:.45;cursor:default}
+.lnk{border:0;background:none;padding:0;color:var(--brand);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:4px;text-align:left;text-decoration:none}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap;line-height:1.5}
+.chip.ok{background:var(--ok-pale);color:var(--ok)}
+.chip.warn{background:var(--warn-pale);color:var(--warn)}
+.chip.amber{background:var(--amber-pale);color:var(--amber)}
+.chip.info{background:var(--info-pale);color:var(--info)}
+.chip.brand{background:var(--brand-pale);color:var(--brand)}
+.chip.mute{background:var(--sunk);color:var(--muted)}
+.chip.solid{background:var(--brand);color:var(--on-brand)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.pad{padding:16px 18px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--muted)}
+.sw{position:relative;width:40px;height:23px;border-radius:999px;border:0;background:var(--line);flex:none;padding:0}
+.sw i{position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:var(--surface);transition:left .15s}
+.sw[aria-checked=true]{background:var(--brand)}
+.sw[aria-checked=true] i{left:20px}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap;background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+tbody tr.row{cursor:pointer}
+tbody tr.row:hover{background:var(--brand-pale)}
+tr.hl td{background:color-mix(in srgb,var(--brand-pale) 70%,var(--surface))}
+.sec-h{font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* six-step timeline */
+.tlw{overflow-x:auto;padding-bottom:2px}
+.tl6{display:grid;grid-template-columns:repeat(6,minmax(104px,1fr));min-width:640px}
+.n6{display:flex;flex-direction:column;gap:3px;padding-right:8px;min-width:0}
+.n6 .rail{display:flex;align-items:center;height:20px;margin-bottom:4px}
+.n6 .rail i{width:14px;height:14px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 2px var(--line);flex:none}
+.n6 .rail b{flex:1;height:3px;background:var(--line);margin-left:6px;border-radius:2px}
+.n6:last-child .rail b{visibility:hidden}
+.n6.d .rail i{background:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.n6.d .rail b{background:var(--brand)}
+.n6.c .rail i{width:18px;height:18px;background:var(--surface);box-shadow:0 0 0 4px var(--brand)}
+.n6 .nm{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.n6.c .nm{color:var(--brand)}
+.n6.f .nm{color:var(--muted)}
+.n6 .dd{font-size:12.5px;color:var(--body)}
+.n6.f .dd{color:var(--muted)}
+.n6 .dd.k{font-weight:700;color:var(--fg)}
+.tls{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;font-size:13.5px;color:var(--body);padding-top:12px;margin-top:12px;border-top:1px solid var(--line-2)}
+.tls b{color:var(--fg)}
+.tls .big{font-size:15px;color:var(--brand);font-weight:700}
+/* vertical timeline (phone) */
+.vt li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;position:relative;padding:7px 0}
+.vt li::before{content:"";position:absolute;left:8px;top:22px;bottom:-8px;width:2px;background:var(--line)}
+.vt li:last-child::before{display:none}
+.vt li.d::before{background:var(--brand)}
+.vt .dot{width:14px;height:14px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 2px var(--line);margin:4px 0 0 2px;position:relative;z-index:1}
+.vt li.d .dot{background:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.vt li.c .dot{box-shadow:0 0 0 4px var(--brand)}
+.vt .nm{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.vt li.c .nm{color:var(--brand)}
+.vt li.f .nm{color:var(--muted)}
+.vt .yd{font-size:12px;color:var(--muted)}
+.vt .dt{font-size:12px;color:var(--body);text-align:right;white-space:nowrap;padding-top:2px}
+.vt li.c .dt{color:var(--brand);font-weight:700}
+
+/* overview */
+.ov{display:flex;flex-direction:column;gap:44px;max-width:1040px}
+.ov section{display:flex;flex-direction:column;gap:16px}
+.ov h2{font-size:21px}
+.ov .lead{font-size:15px;color:var(--body);max-width:44em}
+.ov section.hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:center}
+.hero-t{display:flex;flex-direction:column;gap:14px;min-width:0}
+.hero h1{font-size:clamp(25px,3.6vw,34px);font-weight:700;letter-spacing:.01em}
+.hero h1 span{display:inline-block}
+.hero-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.cmp{padding:6px 18px}
+.cmp-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto minmax(0,1.1fr);gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line-2)}
+.cmp-r:last-child{border-bottom:0}
+.cmp-k{font-size:12.5px;color:var(--muted);font-weight:700}
+.cmp-b{font-size:13.5px;color:var(--muted);text-decoration:line-through}
+.cmp-a{font-size:16px;font-weight:700;color:var(--brand)}
+.vals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.val{padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.val-h{display:flex;align-items:center;gap:10px}
+.val-ic{width:36px;height:36px;border-radius:10px;background:var(--brand-pale);color:var(--brand);display:grid;place-items:center;flex:none}
+.val h3{font-size:17px}
+.dots li{position:relative;padding-left:18px;font-size:13.5px;color:var(--body)}
+.dots li::before{content:"";position:absolute;left:3px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.dots{display:flex;flex-direction:column;gap:5px}
+.val .lnk{margin-top:auto;padding-top:6px}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.flow li{padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.flow .who{font-size:11.5px;font-weight:700;letter-spacing:.06em}
+.flow .who.c{color:var(--amber)} .flow .who.s{color:var(--brand)} .flow .who.a{color:var(--info)}
+.flow b{font-size:14.5px;line-height:1.4}
+.flow p{font-size:12.5px;color:var(--body)}
+.flow .n{font-family:var(--num);font-size:12px;color:var(--muted);font-weight:700}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.three .card{padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.three h3{font-size:15px;display:flex;gap:8px;align-items:center}
+.three h3 .ic{color:var(--brand)}
+.three p{font-size:13px;color:var(--body)}
+.note{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-color:var(--brand);background:var(--brand-pale)}
+.note .ic{color:var(--brand);margin-top:2px}
+.note h3{font-size:15px;margin-bottom:2px}
+.note p{font-size:13.5px;color:var(--body)}
+.note.w{border-color:var(--warn);background:var(--warn-pale)}
+.note.w .ic,.note.w h3{color:var(--warn)}
+
+/* staff */
+.st{display:grid;grid-template-columns:200px minmax(0,1fr);gap:26px;align-items:start}
+.side{display:flex;flex-direction:column;gap:2px}
+.side button{display:flex;align-items:center;gap:10px;border:0;background:transparent;border-radius:9px;padding:10px 12px;font-weight:700;font-size:13.5px;color:var(--body);text-align:left;white-space:nowrap}
+.side button[aria-current=true]{background:var(--brand-pale);color:var(--brand)}
+.side .cnt{margin-left:auto;background:var(--warn);color:var(--surface);border-radius:999px;font-size:11px;padding:0 7px;font-family:var(--num)}
+.side .new{margin-bottom:12px;justify-content:center;background:var(--brand);color:var(--on-brand)}
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ph h1{font-size:22px}
+.ph .sub{font-size:13px;color:var(--muted)}
+.ph .r{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.start{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;overflow:hidden}
+.start div{padding:12px 16px;border-right:1px solid var(--line-2);display:flex;gap:10px;align-items:flex-start;min-width:0}
+.start div:last-child{border-right:0}
+.start .n{width:22px;height:22px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;margin-top:1px}
+.start b{display:block;font-size:13.5px}
+.start span{font-size:12px;color:var(--muted)}
+.todo{display:flex;flex-direction:column}
+.td{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-2);align-items:center}
+.td:last-child{border-bottom:0}
+.td-ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center}
+.td-ic.warn{background:var(--warn-pale);color:var(--warn)} .td-ic.info{background:var(--info-pale);color:var(--info)}
+.td-ic.amber{background:var(--amber-pale);color:var(--amber)} .td-ic.ok{background:var(--ok-pale);color:var(--ok)}
+.td-k{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.td-t{font-size:15px;font-weight:700;line-height:1.45}
+.td-d{font-size:13px;color:var(--body)}
+.td-a{display:flex;gap:8px;align-items:center}
+.done-b{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:transparent;display:grid;place-items:center;color:var(--muted)}
+.done-b:hover{border-color:var(--ok);color:var(--ok)}
+.empty{padding:28px 18px;text-align:center;color:var(--muted)}
+.sidecard h3{font-size:13px;color:var(--muted);letter-spacing:.06em;margin-bottom:10px}
+.sb{display:grid;grid-template-columns:6.6em minmax(0,1fr) 1.6em;gap:8px;align-items:center;font-size:12.5px;padding:3px 0}
+.sb i{display:block;height:8px;border-radius:4px;background:var(--brand);min-width:2px}
+.sb .tr{background:var(--sunk);border-radius:4px}
+.sb .num{text-align:right;font-weight:700}
+.rd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line-2)}
+.rd:first-of-type{border-top:0}
+.rd .k{color:var(--muted)}
+.rd b{font-size:14px}
+.auto li{display:flex;gap:8px;font-size:12.5px;color:var(--body);padding:5px 0;border-bottom:1px dashed var(--line-2)}
+.auto li:last-child{border-bottom:0}
+.auto .ic{color:var(--ok);margin-top:3px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tile{padding:12px 16px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;display:flex;flex-direction:column}
+.tile[aria-pressed=true]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.tile .l{font-size:12px;color:var(--muted);font-weight:700}
+.tile .n{font-size:26px;font-weight:700;line-height:1.25}
+.tile.w .n{color:var(--warn)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar input{max-width:260px}
+.seg2{display:flex;background:var(--sunk);border-radius:8px;padding:3px;margin-left:auto}
+.seg2 button{border:0;background:transparent;border-radius:6px;padding:5px 12px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.seg2 button[aria-pressed=true]{background:var(--surface);color:var(--fg)}
+.board{display:grid;grid-template-columns:repeat(7,minmax(180px,1fr));gap:10px;overflow-x:auto;padding-bottom:8px}
+.kcol{background:var(--sunk);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:140px}
+.kcol h3{font-size:12.5px;padding:4px 6px;display:flex;justify-content:space-between;color:var(--body)}
+.kc{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.kc:hover{border-color:var(--brand)}
+.kc b{font-size:13.5px;line-height:1.4}
+.kc-m{font-size:12px;color:var(--muted)}
+.kc-x{font-size:12px;color:var(--warn);font-weight:700;line-height:1.45}
+.pipe{display:inline-flex;gap:3px;align-items:center;white-space:nowrap}
+.pipe i{width:14px;height:7px;border-radius:2px;background:var(--line);display:inline-block}
+.pipe i.d{background:var(--brand)} .pipe i.c{background:var(--amber)}
+.pipe span{font-size:12.5px;margin-left:6px}
+/* case detail */
+.back{align-self:flex-start}
+.blocked{border-color:var(--warn);background:var(--warn-pale);color:var(--warn);padding:12px 16px;font-weight:700;font-size:13.5px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:9px 14px;font-weight:700;font-size:13.5px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--brand);border-bottom-color:var(--brand)}
+.grp h3{font-size:12px;color:var(--muted);letter-spacing:.08em;padding:12px 18px 4px}
+.grp h3.big{font-size:13px;color:var(--fg);letter-spacing:0}
+.ci{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;font-size:13.5px;padding:9px 18px;border-top:1px solid var(--line-2)}
+.ci .w{font-size:12px;color:var(--muted);text-align:right}
+.nowdo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:hidden}
+.nowdo>div{padding:14px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.nowdo>div+div{border-left:1px solid var(--line-2)}
+.nowdo h3{font-size:13px;letter-spacing:.06em;color:var(--muted)}
+.nx{border-color:var(--brand);padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.nx h3{font-size:16px}
+.nx p{font-size:13px;color:var(--body)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.xc{display:flex;flex-direction:column}
+.xc div{display:flex;gap:10px;align-items:center;padding:9px 18px;border-top:1px solid var(--line-2);font-size:13.5px;flex-wrap:wrap}
+.xc div:first-child{border-top:0}
+.xc .bad{background:var(--warn-pale)}
+.xc .sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.dcard{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:16px 18px}
+.thumb{width:96px;height:128px;border:1px solid var(--line);border-radius:6px;background:var(--sunk);padding:12px 10px;display:flex;flex-direction:column;gap:6px}
+.thumb i{display:block;height:4px;border-radius:2px;background:var(--line)}
+.thumb i:first-child{width:60%;height:6px;background:var(--muted)}
+.dcard h3{font-size:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.life{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;font-size:12px;color:var(--muted);margin:6px 0 8px}
+.life .tr{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.life .tr i{display:block;height:100%;background:var(--ok)}
+.life.w .tr i{background:var(--warn)} .life.w span{color:var(--warn);font-weight:700}
+.ex{display:grid;grid-template-columns:8em minmax(0,1fr) auto;gap:4px 10px;font-size:13px;padding:5px 0;border-top:1px dashed var(--line-2);align-items:center}
+.ex .k{color:var(--muted);font-size:12px}
+.ap{display:grid;grid-template-columns:10em minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 18px;border-top:1px solid var(--line-2);font-size:13.5px}
+.ap:first-child{border-top:0}
+.ap .k{color:var(--muted);font-size:12.5px}
+.ap .v{word-break:break-word}
+.tl{padding:6px 18px}
+.tl li{display:grid;grid-template-columns:5.5em 20px minmax(0,1fr);gap:10px;padding:9px 0;font-size:13.5px;position:relative}
+.tl .t{font-size:12px;color:var(--muted);text-align:right;padding-top:2px}
+.tl .dot{width:10px;height:10px;border-radius:50%;background:var(--brand);margin:6px auto 0}
+.tl .dot.a{background:var(--info)} .tl .dot.c{background:var(--amber)}
+.tl .sum{margin-top:6px;background:var(--info-pale);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--body)}
+/* katen */
+.kt{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 18px;border-top:1px solid var(--line-2);font-size:13.5px}
+.kt:first-child{border-top:0}
+.kt b{display:block;font-size:14px}
+.kt .tiny{display:block}
+.kt.must{background:color-mix(in srgb,var(--brand-pale) 55%,var(--surface))}
+.ktime{font-family:var(--num);font-size:12.5px;color:var(--body);white-space:nowrap;text-align:right;display:inline-flex;gap:4px;align-items:center}
+/* crm */
+.opps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.opp{padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.opp h3{font-size:15px}
+.opp p{font-size:13px;color:var(--body)}
+.opp .of{font-size:13.5px;font-weight:700;color:var(--brand)}
+.opp .btn{align-self:flex-start;margin-top:auto}
+/* help */
+.hgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.hgrid .card{padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.hgrid h3{font-size:14.5px}
+.links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+.links a{display:flex;align-items:center;gap:10px;padding:11px 18px;border-top:1px solid var(--line-2);font-size:13.5px;font-weight:700;text-decoration:none;min-width:0}
+.links a:nth-child(-n+2){border-top:0}
+.links a span{flex:1;min-width:0}
+.links a small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.call{display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center;font-size:13.5px}
+.call b{font-family:var(--num);font-size:16px;user-select:all}
+.phs td{vertical-align:top}
+.phs td:first-child{white-space:nowrap;font-weight:700}
+.phs td ul{display:flex;flex-direction:column;gap:3px}
+.phs td li{position:relative;padding-left:12px}
+.phs td li::before{content:"";position:absolute;left:0;top:.7em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+/* integrations & settings */
+.lk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.lkc{padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.lkc .h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.lkc h3{font-size:14.5px}
+.lkc p{font-size:12.5px;color:var(--body)}
+.rule{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.2fr) auto;gap:12px;align-items:center;padding:11px 18px;border-top:1px solid var(--line-2);font-size:13.5px}
+.rule:first-child{border-top:0}
+.rule .ar{color:var(--muted)}
+.set{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label,.fld .lb{font-size:12.5px;font-weight:700}
+.sws{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1.5px var(--line);padding:0}
+.swatch[aria-pressed=true]{box-shadow:0 0 0 2.5px var(--fg)}
+.prev{border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:300px}
+.radio{display:flex;flex-direction:column;gap:8px}
+.radio label{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;cursor:pointer}
+.radio label.on{border-color:var(--brand);background:var(--brand-pale)}
+.radio input{margin-top:4px}
+.radio b{display:block}
+.qrow{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line-2);font-size:13.5px}
+.qrow:first-of-type{border-top:0}
+.qrow span{flex:1;min-width:0}
+
+/* client phone */
+.cv{display:grid;grid-template-columns:minmax(0,400px) minmax(0,320px);gap:32px;justify-content:center;align-items:start}
+.phone{background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:var(--shadow);min-height:720px;display:flex;flex-direction:column}
+.p-head{background:var(--brand);color:var(--on-brand);padding:18px 18px 16px;display:flex;flex-direction:column;gap:3px}
+.p-head .b{font-size:11.5px;font-weight:700;letter-spacing:.08em;opacity:.9}
+.p-head h1{font-size:19px}
+.p-head p{font-size:13px;opacity:.92}
+.p-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.p-meta span{font-size:12px;font-weight:700;background:color-mix(in srgb,var(--on-brand) 18%,transparent);border-radius:999px;padding:3px 10px}
+.prog{height:8px;border-radius:4px;background:color-mix(in srgb,var(--on-brand) 28%,transparent);margin-top:10px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--on-brand);border-radius:4px;transition:width .3s}
+.p-bar{display:flex;align-items:center;gap:6px;padding:12px 12px 10px;border-bottom:1px solid var(--line-2)}
+.p-bar button{border:0;background:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;color:var(--body)}
+.p-bar h1{font-size:16px}
+.p-body{padding:16px;display:flex;flex-direction:column;gap:14px;flex:1}
+.p-body h2{font-size:17px}
+.p-lead{font-size:13.5px;color:var(--body)}
+.pre{border:1px solid var(--line);border-radius:12px;font-size:13px}
+.pre summary{padding:11px 14px;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center}
+.pre summary .ic{color:var(--ok)}
+.pre .rows{padding:0 14px 10px}
+.pre.tlbox summary .ic{color:var(--brand)}
+.pre.tlbox summary .chip{margin-left:auto}
+.ir{display:grid;grid-template-columns:7em minmax(0,1fr) auto;gap:8px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px;align-items:center}
+.ir .k{color:var(--muted);font-size:12px}
+.ir .v{word-break:break-word;min-width:0}
+.ir .v.na{color:var(--muted);font-size:12px}
+.ir .s{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.ir input{padding:5px 8px;font-size:13px}
+.task{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:13px 14px;text-align:left;width:100%}
+.task:hover{border-color:var(--brand)}
+.task .ti{width:42px;height:42px;border-radius:12px;background:var(--brand-pale);color:var(--brand);display:grid;place-items:center}
+.task.done .ti{background:var(--ok-pale);color:var(--ok)}
+.task b{display:block;font-size:15px;line-height:1.4;color:var(--fg)}
+.task span{font-size:12.5px;color:var(--muted)}
+.task .r{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12px;color:var(--muted)}
+.task .tm{font-family:var(--num);font-weight:700;color:var(--body);font-size:12.5px;white-space:nowrap}
+.task.must{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.task .mk{display:inline-block;margin-bottom:2px}
+.p-help{margin-top:auto;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--sunk);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--body)}
+.doc{border:1px solid var(--line);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:9px}
+.doc.got{border-color:var(--ok);background:color-mix(in srgb,var(--ok-pale) 40%,var(--surface))}
+.doc .t{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.doc h3{font-size:15px}
+.doc .s{font-size:12px;color:var(--muted)}
+.doc .acts{display:flex;gap:8px;flex-wrap:wrap}
+.doc .more{display:flex;gap:14px;flex-wrap:wrap}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.how{background:var(--sunk);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--body)}
+.how ol{list-style:decimal;padding-left:1.3em;display:flex;flex-direction:column;gap:2px}
+.exr{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0}
+.exr span:first-child{color:var(--muted)}
+.exr b{font-weight:500;text-align:right}
+.read{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--info);font-weight:700}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--info-pale);border-top-color:var(--info);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.q{display:flex;flex-direction:column;gap:7px;border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+.q.okq{border-color:var(--ok)}
+.okc{display:none}
+.okq .okc{display:inline-flex}
+.q label,.q .lb{font-size:14px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.q .h{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--surface);padding:11px 4px;color:var(--body);font-size:13.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--brand);color:var(--on-brand);font-weight:700}
+.addr{display:flex;gap:8px;align-items:center;background:var(--sunk);border-radius:8px;padding:8px 10px;font-size:13px}
+.addr code{flex:1;font-family:var(--num);word-break:break-all}
+.agree{display:flex;gap:10px;align-items:flex-start;background:var(--brand-pale);border-radius:12px;padding:13px;font-size:14px;font-weight:700;color:var(--brand)}
+.agree input{width:20px;height:20px;margin-top:1px;flex:none}
+.fin{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:28px 4px 8px}
+.ring{width:66px;height:66px;border-radius:50%;background:var(--ok-pale);color:var(--ok);display:grid;place-items:center}
+.left{align-self:stretch;text-align:left;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+.left b{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.warnbox{border:1px solid var(--warn);background:var(--warn-pale);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--body)}
+.warnbox b{color:var(--warn)}
+.faq details{border-top:1px solid var(--line-2)}
+.faq details:first-child{border-top:0}
+.faq summary{padding:11px 14px;font-weight:700;font-size:13.5px;cursor:pointer}
+.faq details p{padding:0 14px 12px;font-size:13px;color:var(--body)}
+.cnote{display:flex;flex-direction:column;gap:14px;padding-top:8px}
+.cnote h2{font-size:15px}
+
+/* modal & toast */
+.modal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal-bg{position:absolute;inset:0;background:rgba(10,20,22,.55)}
+.modal-box{position:relative;background:var(--surface);border-radius:16px;box-shadow:var(--shadow);width:min(560px,100%);max-height:100%;overflow:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.modal-box h2{font-size:18px;padding-right:36px}
+.modal-box .x{position:absolute;top:12px;right:12px;border:0;background:var(--sunk);width:32px;height:32px;border-radius:50%;display:grid;place-items:center}
+.modal-box textarea{min-height:230px;font-size:13px}
+.m-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.wz{display:flex;gap:6px}
+.wz i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.wz i.on{background:var(--brand)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:26px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--body)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--fg);color:var(--bg);border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:700;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+
+.manhint{display:flex;justify-content:flex-end;margin-bottom:-10px}
+.mansec{padding:18px 20px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:90px}
+.mansec .mh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.mansec h3{font-size:16px;margin:2px 0 4px}
+.msteps{margin:0;padding-left:1.5em;list-style:decimal;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.65;color:var(--fg)}
+.mbtn{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mindex{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:-6px}
+.mh3{font-size:14.5px;margin-top:4px}
+.man .sec-h{scroll-margin-top:90px;margin-top:10px;font-size:19px}
+.mshot:empty{display:none}
+.mshot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
+@media print{header.top,.noprint,.side,.toast{display:none!important} .st{display:block} .mansec{break-inside:avoid} .card{box-shadow:none} body{background:#fff}}
+@media (max-width:980px){ .cols{grid-template-columns:minmax(0,1fr)} .lk,.hgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .flow{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:860px){
+  .st{grid-template-columns:minmax(0,1fr)} .side{flex-direction:row;overflow-x:auto;padding-bottom:6px} .side button{flex:none} .side .new{margin:0 6px 0 0}
+  .ov section.hero{grid-template-columns:minmax(0,1fr)} .cv{grid-template-columns:minmax(0,400px)} .set{grid-template-columns:minmax(0,1fr)} .three{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .vals,.opps,.lk,.flow,.hgrid,.links{grid-template-columns:minmax(0,1fr)} .links a:nth-child(2){border-top:1px solid var(--line-2)} .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .start{grid-template-columns:minmax(0,1fr)} .start div{border-right:0;border-bottom:1px solid var(--line-2)} .start div:last-child{border-bottom:0}
+  .td{grid-template-columns:38px minmax(0,1fr)} .td-a{grid-column:1/-1;justify-content:flex-end}
+  .dcard{grid-template-columns:minmax(0,1fr)} .thumb{display:none}
+  .nowdo{grid-template-columns:minmax(0,1fr)} .nowdo>div+div{border-left:0;border-top:1px solid var(--line-2)}
+  .rule{grid-template-columns:minmax(0,1fr) auto} .rule .ar{display:none} .rule .then{grid-column:1/2;color:var(--muted);font-size:12.5px}
+  .ap{grid-template-columns:minmax(0,1fr) auto} .ap .k{grid-column:1/-1}
+  .kt{grid-template-columns:minmax(0,1fr) auto} .kt .ktime{grid-column:1/2;justify-content:flex-start}
+  .cmp-r{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)} .cmp-k{grid-column:1/-1}
+  .tenant{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){ .spin{animation:none} .prog i,.sw i{transition:none} }
+</style>
+
+<header class="top">
+  <div class="logo"><span class="logo-mark" id="logoMark"></span><span>AI導入補助金コンシェルジュ<small>操作できる試作</small></span></div>
+  <nav class="views" id="views" aria-label="画面の切り替え">
+    <button data-act="view" data-v="overview">概要</button>
+    <button data-act="view" data-v="staff">スタッフ画面</button>
+    <button data-act="view" data-v="client">お客様の画面</button>
+    <button data-act="view" data-v="manual">マニュアル</button>
+  </nav>
+  <div class="tenant"><label for="tenantSel">表示ブランド</label>
+    <select id="tenantSel"><option value="smacon">スマートコンテンツ</option><option value="other">他社ベンダーの例</option></select></div>
+</header>
+<main id="app"></main>
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r)=>(r||document).querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const T0=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
+const day=n=>{const d=new Date(T0);d.setDate(d.getDate()+n);return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());};
+const P=s=>{const a=s.split('/').map(Number);return new Date(a[0],a[1]-1,a[2]);};
+const dl=s=>Math.round((P(s)-T0)/864e5);
+const fd=s=>{const d=P(s);return (d.getFullYear()!==T0.getFullYear()?d.getFullYear()+'/':'')+(d.getMonth()+1)+'/'+d.getDate();};
+const fdw=s=>fd(s)+'（'+'日月火水木金土'[P(s).getDay()]+'）';
+const leftTxt=s=>{const n=dl(s);return n>0?'あと'+n+'日':n===0?'今日':'終了';};
+const fmtMin=m=>m<=0?'—':m<60?'約'+m+'分':'約'+Math.floor(m/60)+'時間'+(m%60?(m%60)+'分':'');
+const IC={
+ today:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/>',
+ cases:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ crm:'<circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5M16 5.2a3 3 0 0 1 0 5.6M18 14.5c1.8.7 2.7 2.2 3 4.5"/>',
+ link:'<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>',
+ set:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+ book:'<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
+ star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+ cal:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+ bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+ arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+ back:'<path d="M15 5l-7 7 7 7"/>',
+ doc:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+ camera:'<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+ chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+ check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+ copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ shield:'<path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/>',
+ bulb:'<path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0c-.7.7-1 1.3-1 2H9c0-.7-.3-1.3-1-2z"/>',
+ card:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 15.5c.5-1.5 1.6-2 3-2s2.5.5 3 2M14 10h5M14 13.5h4"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ yen:'<path d="M7 5l5 7 5-7M12 12v7M8 13h8M8 16h8"/>',
+ ext:'<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+ alert:'<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5v.1"/>',
+ q:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17v.1"/>'
+};
+const ic=(n,c)=>`<svg class="ic ${c||''}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+
+/* ================= official facts (2026-11 時点で確認) ================= */
+const OFFICIAL={
+ top:'https://it-shien.smrj.go.jp/', schedule:'https://it-shien.smrj.go.jp/schedule/', flow:'https://it-shien.smrj.go.jp/applicant/flow/',
+ after:'https://it-shien.smrj.go.jp/aftergrantdecision/measures/', faq:'https://it-shien.smrj.go.jp/faq/', dl:'https://it-shien.smrj.go.jp/download/',
+ invoice:'https://it-shien.smrj.go.jp/applicant/subsidy/digitalbase/', koubo:'https://it-shien.smrj.go.jp/pdf/it2026_kaitei_koubo_invoice.pdf',
+ katen:'https://it-shien.smrj.go.jp/pdf/it2026_addition_list.pdf', contact:'https://it-shien.smrj.go.jp/contact/',
+ gbiz:'https://gbiz-id.go.jp/', sa:'https://www.ipa.go.jp/security/security-action/'};
+const LINKLIST=[['top','公式サイト（トップ）','デジタル化・AI導入補助金2026'],['schedule','事業スケジュール','公募回ごとの締切・交付決定日'],['flow','申請の流れ','交付申請から効果報告まで'],['after','交付決定後の手続き','契約・支払い・実績報告'],['invoice','インボイス枠（インボイス対応類型）','補助率・補助額・対象'],['koubo','公募要領（インボイス対応類型・第7回〜）','PDF'],['katen','加点項目一覧（2026/10/8更新）','PDF'],['faq','よくあるご質問','公式FAQ'],['dl','資料ダウンロード','公募要領・手引き'],['gbiz','gBizID','gBizIDプライムの申請'],['sa','SECURITY ACTION（IPA）','★二つ星の宣言'],['contact','お問い合わせ','事務局の窓口']];
+/* src: off=公式で確認 / part=締切のみ公式で確認 / est=予定・要確認 */
+const ROUNDS=[
+ {id:'r1',n:'1次',close:'2026/05/12',decide:'2026/06/18',end:'2026/12/25',pay:'2027年1〜2月ごろ',src:'est'},
+ {id:'r2',n:'2次',close:'2026/06/15',decide:'2026/07/23',end:'2027/01/29',pay:'2027年2〜3月ごろ',src:'est'},
+ {id:'r3',n:'3次',close:'2026/07/21',decide:'2026/09/02',end:'2027/02/26',pay:'2027年3〜4月ごろ',src:'est'},
+ {id:'r4',n:'4次',close:'2026/08/25',decide:'2026/10/07',end:'2027/03/31',pay:'2027年4〜5月ごろ',src:'est'},
+ {id:'r5',n:'5次',close:'2026/09/29',decide:'2026/11/09',end:'2027/04/30',pay:'2027年5〜6月ごろ',src:'est'},
+ {id:'r6',n:'6次',close:'2026/10/30',decide:'2026/12/10',end:'2027/05/31',pay:'2027年6〜7月ごろ',src:'est'},
+ {id:'r7',n:'7次',close:'2026/12/01',decide:'2027/01/19',end:'2027/07/30',pay:'2027年8〜9月ごろ',src:'off'},
+ {id:'r8',n:'8次',close:'2027/01/07',decide:'2027/02/17',end:'2027/08/31',pay:'2027年9〜10月ごろ',src:'part'}];
+const SRCCHIP={off:'<span class="chip ok">公式で確認</span>',part:'<span class="chip info">締切のみ確認</span>',est:'<span class="chip mute">予定・要確認</span>'};
+const RID=id=>ROUNDS.find(r=>r.id===id);
+const NEXTR=()=>ROUNDS.find(r=>dl(r.close)>=0)||ROUNDS[ROUNDS.length-1];
+const OPENR=()=>ROUNDS.filter(r=>dl(r.close)>=0);
+const PH=['検討','申請','交付決定','事業実施','実績報告','補助金入金'];
+const BCOL=['検討中','申請準備中','交付決定待ち','事業実施中','実績報告中','入金待ち','完了'];
+const PH_DO=[
+ {s:['導入するITツールと見積を決める','締切から逆算して公募回を決める','名刺から案件を作り、専用リンクを送る'],c:['どの業務を任せたいかを相談する']},
+ {s:['書類・回答・お手続きの回収','加点3項目の登録を案内する','申請データを入力し、照合する','申請マイページへお客様を招待する'],c:['書類3点のアップと4つの質問','gBizIDプライムと連絡用メール','加点3項目の登録','申請マイページで内容を確認し、宣誓して提出']},
+ {s:['事務局からの訂正依頼に対応する','交付決定日に結果を確認する'],c:['結果を待つ','この間に契約・支払いをしない']},
+ {s:['交付決定日以降に契約・請求する','導入・初期設定・研修','振込明細などの証憑を回収する'],c:['契約し、期限内に支払う（振込）','導入と研修に参加する']},
+ {s:['実績報告を作成し、お客様と提出する','事務局の確認に対応する'],c:['請求書・領収書・振込明細を提出','申請マイページで報告を提出']},
+ {s:['補助額の確定を確認する','入金を確認し、効果報告の時期を登録する'],c:['申請マイページで補助額を承認（SMS認証）','入金を確認する']}];
+const PH_SHORT=['当社と導入内容を決める','書類・質問・手続き・加点','結果を待つ（契約・支払いはまだ）','契約・導入・支払い','支払いの証拠を提出','補助額を承認して入金'];
+/* 加点（公式の加点項目一覧 2026/10/8更新 に載っている項目。所要時間は当社の目安） */
+const KATEN=[
+ {id:'k1',must:1,name:'成長加速マッチングサービスへの登録',org:'中小企業庁',min:45,time:'30〜60分',who:'お客様（当社が画面共有で案内）',cond:'締切日の時点で、挑戦課題が「掲載中」になっていること',how:['gBizIDプライムでログインし、会員登録','挑戦課題（解決したい経営の課題）を登録','「掲載中」になったことを確認'],note:'掲載中になるまで日数がかかることがあります。締切の1週間前までの登録をおすすめします。'},
+ {id:'k2',must:1,name:'IT戦略ナビwith の実施',org:'中小機構「デジwith」',min:30,time:'約30分',who:'お客様（当社が画面共有で案内）',cond:'交付申請の前に実施し、表示される「IT戦略マップ」を申請時に添付',how:['デジwithで「IT戦略ナビwith」を開く','gBizIDプライムを入力し、質問に答える','表示された「IT戦略マップ」を保存してアップ'],note:'「IT経営サポートセンター」の利用でも代わりになります（加点はどちらか一方）。'},
+ {id:'k3',must:1,name:'省力化ナビの活用',org:'中小機構',min:25,time:'約20〜30分',who:'お客様（当社が画面共有で案内）',cond:'交付申請の前に活用すること（詳しい条件は公募要領で確認）',how:['省力化ナビを開く','業種と課題を入れ、省力化の提案を確認','結果の画面を保存してアップ'],note:'加点の詳しい条件は、公募要領で確認してください。'},
+ {id:'k4',name:'賃上げの事業計画の策定・従業員への表明',min:90,time:'1〜2時間（当社と打ち合わせ）',who:'お客様と当社',cond:'計画を作り、従業員に表明し、達成すること',note:'達成できないと、補助金の返還を求められる場合があります。無理のない計画にします。'},
+ {id:'k5',name:'最低賃金に関する状況',min:0,time:'追加の作業なし',who:'当社（自動判定）',cond:'事業場内の最低賃金の状況',note:'「いちばん低い時給」のご回答から当社が判定します。'},
+ {id:'k6',name:'SECURITY ACTION「★★二つ星」の宣言',min:90,time:'約1〜2時間',who:'お客様（ひな形あり）',cond:'交付申請の前に宣言していること',note:'自社診断と、情報セキュリティ基本方針の作成・公開が必要です。'},
+ {id:'k7',name:'中小機構「IT経営サポートセンター」の利用',min:60,time:'60分（オンライン相談）',who:'お客様',cond:'IT戦略ナビwith の代わりになる（どちらか一方のみ加点）',note:'第6回公募から加点の対象。利用の期限があるため、締切の前月中に予約します。'},
+ {id:'k8',name:'健康経営優良法人2026',min:0,time:'認定済みなら作業なし',who:'—',cond:'認定を受けていること',note:'これから取る場合は、今回の締切には間に合わない見込みです。'},
+ {id:'k9',name:'くるみん・えるぼし認定',min:0,time:'認定済みなら作業なし',who:'—',cond:'認定を受けていること',note:'認定通知書のコピーをご用意ください。'},
+ {id:'k10',name:'インボイス未登録の場合、実績報告日までに登録',min:30,time:'申請約30分＋登録まで数週間',who:'お客様',cond:'交付申請時点で未登録で、実績報告日までに登録すること',note:'すでに登録済みの会社は対象外です。'},
+ {id:'k11',name:'クラウド型・インボイス対応のITツールを選ぶ',min:0,time:'追加の作業なし',who:'当社',cond:'クラウドを利用したITツール導入の検討 など',note:'AI Officeはクラウド型のため、当社で記載します。'}];
+const MUST=KATEN.filter(k=>k.must);
+const MUSTMIN=MUST.reduce((a,k)=>a+k.min,0);
+
+/* ================= demo data (all companies and people are fictional) ================= */
+const DOCS=['履歴事項全部証明書','法人税の納税証明書','決算書（直近分）'];
+const BRANDS=[
+ {n:'ティール',l:'#0E5C63',d:'#63B7BE',pl:'#E0EEEE',pd:'#17302F'},
+ {n:'ネイビー',l:'#254A8F',d:'#8FB0F0',pl:'#E5ECF8',pd:'#1B2946'},
+ {n:'グリーン',l:'#1F6B3F',d:'#6FCB94',pl:'#E0F1E6',pd:'#16321F'},
+ {n:'プラム',l:'#6B2F6E',d:'#D29AD6',pl:'#F2E4F3',pd:'#33203A'},
+ {n:'ブラウン',l:'#7A4516',d:'#E0A870',pl:'#F6EADC',pd:'#3A2A16'}];
+const TENANTS={
+ smacon:{name:'スマートコンテンツ',staff:'山田',fwd:'hojokin@smartcontents.example',brand:0},
+ other:{name:'サンプルITパートナーズ',staff:'田中',fwd:'hojokin@sample-it.example',brand:1}};
+const S={view:'overview',staff:'today',caseId:null,tab:'check',mode:'board',filter:'all',q:'',done:{},block:null,modal:null,
+ t:Object.assign({},TENANTS.smacon),katenMode:'share',
+ client:{screen:'home',docs:['none','none','none'],ans:{},kat:{},fwd:'no',sent:false,fixes:{},editing:null,help:null,guide:false,agree:false,khow:null},
+ questions:[
+  {id:'q1',label:'従業員代表者のお名前',type:'text',ph:'例）佐藤 花子',on:true},
+  {id:'q2',label:'経理ご担当者のお名前',type:'text',ph:'例）鈴木 一郎',on:true},
+  {id:'q3',label:'いちばん低い時給と、該当する方',type:'wage',hint:'パート・アルバイトの方を含めてお答えください',on:true},
+  {id:'q4',label:'賃上げのご予定',type:'seg',opts:['あり','検討中','なし'],extra:['1.5%程度','3%程度','5%以上','未定'],on:true}],
+ links:{pms:true,line:true,gmail:true,drive:true,slack:true,freee:false,houjin:true,invoice:true,api:true},
+ rules:[true,true,true,true,true,true,true]};
+const cl=S.client;
+const CO={name:'株式会社みどり設備',kana:'ミドリセツビ',num:'0000000000001',zip:'〒335-0021',addr:'埼玉県戸田市新曽0-0-0',rep:'緑川 太郎',repKana:'ミドリカワ タロウ',tel:'048-000-0000',mobile:'090-0000-0000',mail:'t.midorikawa@midori-setsubi.example'};
+let seq=0;
+const KDONE={k1:'済み',k2:'済み',k3:'済み'},KNONE={k1:'',k2:'',k3:''};
+function mk(co,ind,rep,addr,emp,phase,wait,rid,o){seq++;return Object.assign({id:'c'+seq,no:seq,co,ind,rep,addr,emp,phase,wait,rid,docs:['got','got','got'],qn:4,qt:4,gbiz:'取得済み',fwd:true,kat:Object.assign({},KDONE),miss:[],exp:60,upd:'',amount:350,tool:'AI Office',opened:true},o||{});}
+const NOTHING={docs:['none','none','none'],qn:0,gbiz:'未確認',fwd:false,exp:null,opened:false};
+const CASES=[
+ mk('株式会社みどり設備','管工事業（建設業）','緑川 太郎','埼玉県戸田市新曽0-0-0',[6,1,4],1,'client','r7',{upd:'今日'}),
+ mk('ひかり歯科クリニック','歯科診療所','光田 恵','埼玉県蕨市中央0-0-0',[5,0,6],1,'client','r8',Object.assign({},NOTHING,{kat:Object.assign({},KNONE),miss:['書類3点','質問4つ','お手続き2つ','加点3項目'],upd:'6日前'})),
+ mk('株式会社ソレイユ','飲食業（カフェ2店舗）','日向 さくら','東京都板橋区成増0-0-0',[3,0,8],1,'us','r7',{miss:['AI読み取りの確認'],exp:71,upd:'昨日',check:true}),
+ mk('株式会社やまと運送','一般貨物自動車運送業','大和 健','埼玉県川口市領家0-0-0',[14,2,3],1,'us','r7',{exp:8,upd:'2日前'}),
+ mk('株式会社さくら介護サービス','訪問介護事業','桜井 由美','埼玉県さいたま市南区0-0-0',[9,1,12],1,'us','r7',{kat:{k1:'登録済み・未掲載',k2:'済み',k3:'済み'},miss:['加点：成長加速マッチング（未掲載）'],exp:64,upd:'今日'}),
+ mk('株式会社あおぞら不動産','不動産仲介業','青木 大地','東京都北区赤羽0-0-0',[7,0,2],2,'us','r6',{docs:['got','redo','got'],miss:['納税証明書の再提出'],exp:40,upd:'今日',mail:true}),
+ mk('有限会社たちばな印刷','印刷業','橘 美咲','埼玉県戸田市美女木0-0-0',[8,1,2],3,'us','r5',{upd:'3日前'}),
+ mk('株式会社かえで工務店','木造建築工事業','楓 誠','埼玉県朝霞市本町0-0-0',[5,0,1],4,'client','r3',{miss:['振込明細'],upd:'5日前'}),
+ mk('のぞみ税理士法人','税理士事務所','望月 学','東京都豊島区池袋0-0-0',[6,0,3],6,'none','r1',{upd:'先月',paid:'11/10 入金済み'}),
+ mk('株式会社はるか食品','食料品製造業','春日 遥','埼玉県戸田市笹目0-0-0',[18,2,9],0,'us','r8',Object.assign({},NOTHING,{kat:Object.assign({},KNONE),upd:'昨日'}))];
+const MIDORI=CASES[0];
+const byId=id=>CASES.find(c=>c.id===id);
+const R=c=>c.phase===0?NEXTR():RID(c.rid);
+const total=c=>c.emp[0]+c.emp[1]+c.emp[2];
+const gotN=c=>c.docs.filter(d=>d==='got').length;
+const katN=c=>MUST.filter(k=>c.kat[k.id]==='済み').length;
+const sei=c=>c.rep.split(' ')[0];
+const staffShort=()=>S.t.staff.replace(/（.*?）/,'');
+function TODAY(){return [
+ {id:'a1',type:'deadline',cid:'c4',title:'証明書の期限まで、あと8日',desc:`履歴事項全部証明書は ${fd(day(8))} で発行から3か月になります。書類と加点はそろっています。期限内に申請まで進めてください。`,btn:'案件を開く',tab:'docs'},
+ {id:'a2',type:'katen',cid:'c5',title:'加点：成長加速マッチングが「掲載中」になっていません',desc:`${NEXTR().n}の締切（${fd(NEXTR().close)}）の時点で掲載中であることが条件です。登録は済んでいるので、掲載状況を確認してください。`,btn:'加点を確認',tab:'katen'},
+ {id:'a3',type:'ai',cid:'c3',title:'AI読み取りの確認が1件',desc:'決算書の従業員数が、お客様の回答と食い違っています（書類は11名、回答は10名）。',btn:'確認する',tab:'docs'},
+ {id:'a4',type:'mail',cid:'c6',title:'事務局から訂正依頼のメール',desc:'AIの要約：納税証明書の種類が「その3」になっている。「その1」または「その2」での再提出が必要。',btn:'内容を見る',tab:'log'},
+ {id:'a5',type:'nudge',cid:'c2',title:'リンクを送って6日、まだ開かれていません',desc:'8次の締切まで余裕はありますが、加点の登録に日数がかかります。催促文を用意しました。',btn:'催促文を見る',act:'nudge'},
+ {id:'a6',type:'report',cid:'c8',title:'実績報告：振込明細がまだ届いていません',desc:'実績報告の期限まで余裕はありますが、早く出すほど入金も早まります。',btn:'催促文を見る',act:'nudge'},
+ {id:'a7',type:'money',cid:'c7',title:'事業実施中：契約と支払いの確認',desc:'交付決定日より後の日付で契約・請求していることを確認してください。PMSに請求タスクがあります。',btn:'案件を開く',tab:'check'}];}
+const TKIND={deadline:['clock','warn','期限が近い'],katen:['star','info','加点'],ai:['spark','info','確認してください'],mail:['mail','amber','事務局から連絡'],nudge:['bell','amber','催促のタイミング'],report:['doc','amber','実績報告'],money:['yen','ok','事業実施']};
+const OPPS=[
+ {id:'o1',cid:'c9',kind:'保守の更新',why:`入金まで完了。保守12か月が ${fd(day(62))} に満了します。利用中のAIスタッフは3体のままです。`,offer:'保守更新と、経理担当AIスタッフの追加',msg:'ご利用開始からまもなく1年になります。更新のご案内とあわせて、経理まわり（請求書の作成・入金確認）を任せられるAIスタッフの追加をご提案したく、ご連絡しました。'},
+ {id:'o2',cid:'c7',kind:'追加のご提案',why:'事業実施中。従業員11名で、AI研修の実施記録がありません。',offer:'社員向けAI活用研修（人材開発支援助成金の対象になる場合があります）',msg:'導入後に社員の皆さまが使いこなせるよう、半日のAI活用研修をご用意しています。助成金の対象になる場合がありますので、条件を確認のうえご案内します。'},
+ {id:'o3',cid:'c4',kind:'業種に合わせた提案',why:'運送業・従業員19名。業種と規模から、請求書作成の負担が大きいと推定されます。',offer:'請求書作成を担当するAIスタッフの追加',msg:'運送業のお客様では、月末の請求書作成に時間がかかるというお声をよく伺います。配車実績から請求書の下書きまでを自動で作る構成をご提案できます。'},
+ {id:'o4',cid:'c8',kind:'ご紹介のお願い',why:'実績報告まで進み、建設業の事例として効果が出ている時期です。',offer:'同業のお知り合いのご紹介（紹介制度のご案内）',msg:'導入後のご様子はいかがでしょうか。同じようなお悩みをお持ちの同業の方がいらっしゃいましたら、ぜひご紹介ください。紹介制度をご用意しています。'}];
+const LINKS=[
+ {id:'pms',n:'PMS（案件・顧客管理）',d:'顧客を同期し、ステップに合わせてタスクを自動で作成します。'},
+ {id:'line',n:'LINE公式アカウント',d:'専用リンクの送付と、未提出のリマインド。'},
+ {id:'gmail',n:'Gmail（補助金用の受信箱）',d:'転送メールの受信を確認。事務局の連絡を要約して案件に記録。'},
+ {id:'drive',n:'Google ドライブ',d:'案件ごとにフォルダを作り、書類を自動で保管します。'},
+ {id:'slack',n:'Slack',d:'期限・訂正依頼・交付決定を担当チャンネルに通知。'},
+ {id:'freee',n:'freee会計',d:'交付決定のあと、請求書の下書きを作成します。'},
+ {id:'houjin',n:'国税庁 法人番号API',d:'会社名から法人番号・所在地・フリガナを取得（利用にはアプリケーションIDの発行申請が必要）。'},
+ {id:'invoice',n:'国税庁 インボイス公表API',d:'登録番号と登録状況を照合（同上）。'},
+ {id:'api',n:'API・Webhook・CSV',d:'自社の基幹システムや、ほかの顧客管理とつなぐ出口。'}];
+const RULES=[
+ ['リンク送付から3日、開かれていない','LINE用のリマインド文を用意する'],
+ ['申請の締切まで14日','加点3項目が済んでいない案件を、今日やることの先頭に出す'],
+ ['証明書の期限まで14日','担当者に通知する'],
+ ['書類・回答・加点がそろった','PMSに「申請データの入力」のタスクを作る'],
+ ['事務局からメールを受信','AIが要約し、該当の案件に記録する'],
+ ['交付決定日になった','結果を確認するタスクを作り、契約書と請求書の下書きを作る'],
+ ['入金を確認した','顧客台帳に保守更新日と効果報告の時期を登録する']];
+const NEWCO=[{co:'株式会社こだま製作所',ind:'金属製品製造業',rep:'児玉 修',addr:'埼玉県川口市元郷0-0-0',emp:[12,0,3]},{co:'株式会社つばめ商会',ind:'卸売業',rep:'燕 京子',addr:'東京都足立区千住0-0-0',emp:[7,1,2]}];
+
+/* ================= client state ================= */
+const TIME={docs:5,qs:5,gbiz:15,mail:10,confirm:3};
+function qDone(q){const a=cl.ans;return q.type==='wage'?!!(a[q.id]&&a[q.id+'n']):!!a[q.id];}
+function cStat(){const qs=S.questions.filter(q=>q.on);const qn=qs.filter(qDone).length;const got=cl.docs.filter(d=>d==='got').length;const later=cl.docs.filter(d=>d==='later').length;
+ const gOk=cl.ans.gbiz==='取得済み',mOk=!!(cl.ans.mail&&cl.fwd==='ok');const kn=MUST.filter(k=>cl.kat[k.id]==='済み').length;
+ const rem={docs:cl.docs.some(d=>d==='none')?TIME.docs:0,qs:qn<qs.length?Math.max(1,Math.ceil(TIME.qs*(qs.length-qn)/Math.max(1,qs.length))):0,proc:(gOk?0:TIME.gbiz)+(mOk?0:TIME.mail),katen:MUST.reduce((a,k)=>a+(cl.kat[k.id]==='済み'?0:k.min),0),confirm:cl.sent?0:TIME.confirm};
+ return{qs,qt:qs.length,qn,got,later,procN:(gOk?1:0)+(mOk?1:0),kn,rem,remAll:rem.docs+rem.qs+rem.proc+rem.katen+rem.confirm};}
+function syncMidori(){const c=MIDORI,s=cStat();
+ c.docs=cl.docs.map(d=>d==='got'?'got':'none');c.qn=s.qn;c.qt=s.qt;c.gbiz=cl.ans.gbiz||'未確認';c.fwd=cl.fwd==='ok';
+ c.kat={k1:cl.kat.k1||'',k2:cl.kat.k2||'',k3:cl.kat.k3||''};
+ const m=[];cl.docs.forEach((d,i)=>{if(d!=='got')m.push(DOCS[i]);});
+ if(s.qn<s.qt)m.push('質問 あと'+(s.qt-s.qn)+'つ');if(!c.fwd)m.push('連絡用メールの転送');if(c.gbiz!=='取得済み')m.push('gBizIDプライム');
+ if(s.kn<3)m.push('加点 あと'+(3-s.kn)+'項目');
+ c.miss=m;c.phase=Math.max(1,c.manual||1);c.wait=m.length?'client':'us';c.exp=cl.docs[0]==='got'?69:null;c.upd=(s.got||s.qn||cl.sent)?'たった今':'今日';c.opened=true;}
+function applyBrand(){const b=BRANDS[S.t.brand]||BRANDS[0],r=document.documentElement.style;
+ r.setProperty('--brand-l',b.l);r.setProperty('--brand-d',b.d);r.setProperty('--brand-pale-l',b.pl);r.setProperty('--brand-pale-d',b.pd);}
+
+/* ================= shared bits ================= */
+const waitChip=c=>c.wait==='client'?'<span class="chip amber">お客様待ち</span>':c.wait==='us'?'<span class="chip brand">自社の対応</span>':'<span class="chip mute">完了</span>';
+const missShort=c=>c.miss.length>2?c.miss.slice(0,2).join('・')+' ほか'+(c.miss.length-2)+'件':c.miss.join('・');
+const expWarn=c=>(c.exp!=null&&c.phase<=1&&c.exp<=14);
+const pipe=c=>'<span class="pipe">'+PH.map((_,i)=>`<i class="${i<c.phase?'d':i===c.phase?'c':''}"></i>`).join('')+`<span>${BCOL[c.phase]}</span></span>`;
+function phDates(c){const r=R(c);return [
+ c.phase>0?`${r.n}で申請`:`候補：${r.n}`,
+ c.phase>1?`${fd(r.close)} 申請済み`:`締切 ${fd(r.close)}`,
+ c.phase>2?`${fd(r.decide)} 交付決定`:`${fd(r.decide)} 予定`,
+ c.phase>3?'導入・支払い済み':`期限 ${fd(r.end)}`,
+ c.phase>4?'提出済み':`期限 ${fd(r.end)}`,
+ c.phase>5?(c.paid||'入金済み'):`${r.pay}（目安）`];}
+function nextDue(c){const r=R(c);
+ return [{t:'次の締切',d:r.close,l:`${r.n}の締切`},{t:'申請締切',d:r.close,l:`${r.n}の締切`},{t:'交付決定',d:r.decide,l:'交付決定の予定日'},{t:'事業実施の期限',d:r.end,l:'契約・支払いの期限'},{t:'実績報告の期限',d:r.end,l:'実績報告の期限'},{t:'入金の見込み',d:null,l:r.pay+'（目安）'},{t:'次の手続き',d:null,l:'効果報告'}][c.phase];}
+function phSummary(c){const n=nextDue(c);const pos=c.phase<6?`全6ステップの${c.phase+1}つ目「${PH[c.phase]}」`:'全ステップ完了';
+ const due=n.d?`${n.t} <b class="num">${fdw(n.d)}</b> <span class="big num">${leftTxt(n.d)}</span>`:`${n.t} <b>${n.l}</b>`;
+ const pay=c.phase<6?`入金の見込み <b>${R(c).pay}</b>（目安）`:`<b>${c.paid||'入金済み'}</b>`;
+ return `<span><b>${pos}</b></span><span>${due}</span><span>${pay}</span>`;}
+function tl6(c,showSum){const d=phDates(c);
+ return `<div class="card pad"><div class="tlw"><div class="tl6">${PH.map((p,i)=>{const s=i<c.phase?'d':i===c.phase?'c':'f';
+  return `<div class="n6 ${s}"><div class="rail"><i></i><b></b></div><div class="nm">${p}${s==='c'?'<span class="chip solid">今ここ</span>':''}</div><div class="dd ${s==='c'?'k':''}">${esc(d[i])}</div></div>`;}).join('')}</div></div>
+ ${showSum!==false?`<div class="tls">${phSummary(c)}</div>`:''}</div>`;}
+function vt(c){const d=phDates(c);
+ return `<ol class="vt">${PH.map((p,i)=>{const s=i<c.phase?'d':i===c.phase?'c':'f';
+  return `<li class="${s}"><span class="dot"></span><div><div class="nm">${p}${s==='c'?'<span class="chip solid">今ここ</span>':''}</div><div class="yd">${PH_SHORT[i]}</div></div><span class="dt num">${esc(d[i])}</span></li>`;}).join('')}</ol>`;}
+function nudgeText(c){const m=c.miss.length?c.miss.map(s=>'・'+s).join('\n'):'・（不足はありません）';const r=R(c);
+ const lead=c.phase>=3?'AI導入補助金の実績報告に向けて、あと下記だけお願いできますでしょうか。':'AI導入補助金の申請に向けて、あと下記だけお願いできますでしょうか。';
+ return `${sei(c)}様\n\nお世話になっております。${S.t.name}の${staffShort()}です。\n${lead}\n\n${m}\n\n下のリンクから、スマホで撮影してアップしていただくだけで結構です。\nhttps://hojokin.example/r/${c.id}-XXXX\n\n${c.phase<=1?`申請の締切は ${fdw(r.close)} です（${leftTxt(r.close)}）。\n`:''}${expWarn(c)?`※ 履歴事項全部証明書の有効期限（発行から3か月）が ${fd(day(c.exp))} です。お早めにお願いいたします。\n`:''}\nご不明な点は、このLINEにそのままご返信ください。\nよろしくお願いいたします。`;}
+function offerText(o){const c=byId(o.cid);return `${sei(c)}様\n\nいつもお世話になっております。${S.t.name}の${staffShort()}です。\n\n${o.msg}\n\n15分ほどオンラインでご説明できます。ご都合のよい日時を2〜3ついただけますでしょうか。\n\nよろしくお願いいたします。`;}
+function linkRow(k){const L=LINKLIST.find(x=>x[0]===k);return `<a href="${OFFICIAL[k]}" target="_blank" rel="noopener">${ic('ext','s')}<span>${L[1]}<small>${L[2]}</small></span></a>`;}
+const CALL=`<div class="call"><span class="muted">事務局コールセンター</span><span>ナビダイヤル <b>0570-666-376</b></span><span>IP電話から <b>050-3133-3272</b></span><span class="tiny">9:30〜17:30（土日祝・年末年始を除く）</span></div>`;
+
+/* ================= OVERVIEW ================= */
+function overview(){
+ const cmp=[['お客様の入力','約20項目','6項目だけ'],['送るもの','長文のLINE','リンク1本'],['情報の置き場所','LINE・メール・メモ','1か所に集約'],['加点の進み具合','人が覚えておく','3項目を自動で追跡'],['全体の見通し','入金がいつか分からない','入金まで日付で表示']];
+ const vals=[
+  {i:'today',who:'スタッフ',h:'手間が減り、抜け漏れなく進む',li:['今日やることが、優先順に1画面で並ぶ','締切・証明書の期限・加点の未完了を自動で検知','そろっていない案件は、次のステップに進めない','制度の要点・日程・加点一覧を、お助け情報でいつでも確認'],go:['staff','today','「今日やること」を見る']},
+  {i:'camera',who:'お客様',h:'やることと、かかる時間が分かる',li:['名刺と公開情報で、会社情報を先に入力しておく','やることごとに「約5分」などの目安を表示','書類は写真でよい。AIが読み取って残りを埋める','申請から入金まで、いまどこかを日付つきで表示'],go:['client','','お客様の画面を見る']},
+  {i:'bulb',who:'営業',h:'申請データが、そのまま顧客台帳になる',li:['業種・従業員数・導入ツール・交付額が自動で貯まる','保守の更新や効果報告の時期など、次の接点を知らせる','データを根拠にした提案メモを、AIが下書きする'],go:['staff','crm','「顧客・提案」を見る']},
+  {i:'link',who:'連携',h:'PMSや普段のツールとつながる',li:['PMSに顧客とタスクを自動で作る','LINEでリンク送付とリマインド','補助金用メールの受信を確認し、事務局の連絡を要約','API・CSVで、他社の基幹システムにも渡せる'],go:['staff','links','「連携」を見る']}];
+ const flow=[['s','スタッフ・30秒','名刺を撮る','会社名から法人番号・住所・インボイス登録を自動で取得'],['s','スタッフ・LINE','リンクを送る','文面は3行。送るのはリンク1本だけ'],['c','お客様・合計約2時間','撮って、答えて、加点','書類3点・質問4つ・手続き2つ・加点3項目。時間の目安つき'],['a','自動','AIが読み取り、照合','発行日・代表者・従業員数を抽出。食い違いと期限を判定'],['s','スタッフ','申請から入金まで','6つのステップを日付で管理。その後の提案へ']];
+ return `<div class="wrap ov">
+ <section class="hero">
+  <div class="hero-t">
+   <p class="eyebrow">AI導入補助金（デジタル化・AI導入補助金）の申請支援に特化した業務ツール</p>
+   <h1><span>AI導入補助金の</span><span>書類集めから入金まで、</span><span>リンク1本で。</span></h1>
+   <p class="lead">お客様から集める書類と情報を、名刺・公開情報・AI読み取りで先に埋めます。加点3項目の進み具合と、申請から入金までの日程も、スタッフとお客様の両方が同じ画面で確認できます。</p>
+   <div class="hero-cta"><button class="btn p lg" data-act="go" data-v="staff" data-s="today">スタッフ画面を触ってみる</button><button class="btn o lg" data-act="view" data-v="client">お客様の画面を触ってみる</button><button class="btn g lg" data-act="man">操作マニュアルを見る</button></div>
+   <p class="tiny">画面はすべて操作できます。会社名・人名は架空の例で、入力内容は保存されません。</p>
+  </div>
+  <div class="card cmp" aria-label="今と導入後の比較">${cmp.map(r=>`<div class="cmp-r"><span class="cmp-k">${r[0]}</span><span class="cmp-b">${r[1]}</span><span class="muted">${ic('arrow','s')}</span><span class="cmp-a">${r[2]}</span></div>`).join('')}</div>
+ </section>
+ <section>
+  <h2>申請から入金まで、いまどこにいるかが分かる</h2>
+  <p class="lead">6つのステップに、公募回の締切・交付決定日・実績報告の期限・入金の見込みを自動で当てはめます。スタッフ画面とお客様の画面で、同じものを表示します。</p>
+  ${tl6(MIDORI)}
+  <p class="tiny">例：${esc(CO.name)}（${R(MIDORI).n}で申請予定）。日程は2026年11月時点の公表内容です。入金の時期は公式の日程がないため、実績報告を期限に出した場合の当社の目安です。</p>
+ </section>
+ <section>
+  <h2>4つのねらいと、それを実現する画面</h2>
+  <div class="vals">${vals.map(v=>`<article class="card val"><div class="val-h"><span class="val-ic">${ic(v.i,'l')}</span><div><p class="eyebrow">${v.who}</p><h3>${v.h}</h3></div></div><ul class="dots">${v.li.map(l=>`<li>${l}</li>`).join('')}</ul><button class="lnk" data-act="go" data-v="${v.go[0]}" data-s="${v.go[1]}">${v.go[2]} ${ic('arrow','s')}</button></article>`).join('')}</div>
+ </section>
+ <section>
+  <h2>AI導入補助金に特化した3つの機能</h2>
+  <div class="three">
+   <div class="card"><h3>${ic('cal')}公募回の日程を自動で反映</h3><p>締切・交付決定日・実績報告の期限を案件ごとに計算。締切から逆算して、今日やることを並べます。</p></div>
+   <div class="card"><h3>${ic('star')}加点ガイド（所要時間つき）</h3><p>成長加速マッチング・IT戦略ナビwith・省力化ナビの3つを、ほぼ必須として追跡。その他の加点も、所要時間つきの一覧で確認できます。</p></div>
+   <div class="card"><h3>${ic('book')}お助け情報を両方に</h3><p>制度の要点、補助率、スケジュール、注意点、公式サイトへのリンクを、スタッフとお客様の両方の画面に載せています。</p></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn o" data-act="go" data-v="staff" data-s="help">お助け情報を見る</button></div>
+ </section>
+ <section>
+  <h2>1件の申請は、こう流れます</h2>
+  <ol class="flow">${flow.map((f,i)=>`<li class="card"><span class="n">STEP ${i+1}</span><span class="who ${f[0]}">${f[1]}</span><b>${f[2]}</b><p>${f[3]}</p></li>`).join('')}</ol>
+ </section>
+ <section>
+  <h2>ほかのIT導入支援事業者でも、そのまま使える</h2>
+  <p class="lead">自社専用の作り込みにせず、設定で差し替えられるようにしています。右上の「表示ブランド」を切り替えると、他社で使った場合の見え方を確認できます。</p>
+  <div class="three">
+   <div class="card"><h3>ブランドを差し替える</h3><p>社名・色・担当者名・転送先アドレスを設定するだけで、お客様の画面が自社の名前になります。</p></div>
+   <div class="card"><h3>日程と加点は共通で更新</h3><p>事務局の発表に合わせて、公募回の日程と加点項目を提供元がまとめて更新します。各社での入力は不要です。</p></div>
+   <div class="card"><h3>自社の仕組みとつなぐ</h3><p>API・Webhook・CSVを用意。PMS以外の顧客管理や基幹システムにも、同じデータを渡せます。</p></div>
+  </div>
+  <div><button class="btn o" data-act="go" data-v="staff" data-s="settings">設定画面を見る</button></div>
+ </section>
+ <section>
+  <div class="card note">${ic('shield','l')}<div><h3>IDとパスワードは預かりません</h3><p>gBizIDや申請マイページのログイン情報は、保存も入力欄も設けていません。加点の登録は、画面共有で一緒に操作します。申請マイページはお客様ご本人が入力し、このツールは入力ガイドを表示します。</p></div></div>
+ </section></div>`;}
+
+/* ================= STAFF ================= */
+function staff(){
+ const left=TODAY().filter(a=>!S.done[a.id]).length;
+ const nav=SNAV,mk=S.caseId?'tab:'+S.tab:S.staff;
+ const body=`<div class="manhint noprint"><button class="lnk" data-act="man" data-k="${mk}">${ic('q','s')}この画面の使い方</button></div>`+staffBody();
+ return `<div class="wrap st"><aside class="side" aria-label="スタッフ画面のメニュー">
+  <button class="new" data-act="newcase">${ic('plus')}新しい案件</button>
+  ${nav.map(n=>`<button data-act="snav" data-s="${n[0]}" aria-current="${S.caseId?n[0]==='cases':S.staff===n[0]}">${ic(n[1])}${n[2]}${n[0]==='today'&&left?`<span class="cnt">${left}</span>`:''}</button>`).join('')}
+  <button data-act="man">${ic('q')}使い方</button>
+ </aside><div class="main">${body}</div></div>`;}
+function staffBody(){return S.caseId?caseDetail(byId(S.caseId)):({today:todayV,cases:casesV,crm:crmV,help:helpV,links:linksV,settings:settingsV})[S.staff]();}
+
+function roundCard(){const open=OPENR().slice(0,2);
+ return `<div class="card pad sidecard"><h3>受付中の公募回</h3>${open.map(r=>`<div class="rd"><span class="k">${r.n}</span><span><b class="num">締切 ${fdw(r.close)}</b> <span class="chip ${dl(r.close)<=14?'warn':'brand'}">${leftTxt(r.close)}</span></span><span class="k">交付決定</span><span class="num">${fd(r.decide)} 予定</span><span class="k">実績報告</span><span class="num">期限 ${fd(r.end)}</span></div>`).join('')}<p class="tiny" style="margin-top:6px">日程は事務局の発表で変わることがあります。</p><button class="lnk" style="margin-top:8px" data-act="snav" data-s="help">スケジュールの一覧 ${ic('arrow','s')}</button></div>`;}
+function todayV(){
+ const items=TODAY().filter(a=>!S.done[a.id]);
+ const counts=BCOL.map((_,i)=>CASES.filter(c=>c.phase===i).length),mx=Math.max.apply(null,counts)||1;
+ const auto=['法人番号APIで会社情報を取得（2社）','インボイス登録を照合（2社）','証明書の発行日を読み取り、期限を計算（5件）','成長加速マッチングの掲載状況を確認（4社）','転送メールの受信を確認（1社）','事務局のメールを要約して案件に記録（1件）'];
+ const nr=NEXTR();
+ return `<div class="ph"><div><h1>${esc(staffShort())}さん、今日やることは${items.length}件です</h1><p class="sub">優先度の高い順に並んでいます。上から片づければ、抜け漏れはありません。</p></div>
+  <div class="r"><span class="chip ${dl(nr.close)<=14?'warn':'brand'}">${ic('cal','s')}${nr.n}の締切 ${fdw(nr.close)}・${leftTxt(nr.close)}</span></div></div>
+ <div class="card start"><div><span class="n">1</span><p><b>名刺を撮る</b><span>会社情報は自動で入ります</span></p></div><div><span class="n">2</span><p><b>リンクを送る</b><span>LINEに貼るだけ</span></p></div><div><span class="n">3</span><p><b>届いたら確認する</b><span>やることはここに出ます</span></p></div></div>
+ <div class="cols"><div class="card todo">${items.length?items.map(a=>{const k=TKIND[a.type],c=byId(a.cid);return `<div class="td"><span class="td-ic ${k[1]}">${ic(k[0],'l')}</span>
+   <div><p class="td-k"><span>${k[2]}</span><span>${esc(c.co)}</span><span class="chip mute">${BCOL[c.phase]}</span></p><p class="td-t">${a.title}</p><p class="td-d">${a.desc}</p></div>
+   <div class="td-a"><button class="btn p sm" data-act="todo" data-a="${a.id}">${a.btn}</button><button class="done-b" data-act="tdone" data-a="${a.id}" aria-label="済みにする" title="済みにする">${ic('check')}</button></div></div>`;}).join('')
+   :`<div class="empty"><p><b>今日やることは、すべて終わりました。</b></p><p>新しい動きがあれば、ここに出ます。</p></div>`}</div>
+  <div class="stack">
+   ${roundCard()}
+   <div class="card pad sidecard"><h3>ステップ別の件数</h3>${BCOL.map((s,i)=>`<div class="sb"><span>${s}</span><span class="tr"><i style="width:${counts[i]/mx*100}%"></i></span><span class="num">${counts[i]}</span></div>`).join('')}</div>
+   <div class="card pad sidecard"><h3>今日、自動で済んだこと</h3><ul class="auto">${auto.map(a=>`<li>${ic('check','s')}<span>${a}</span></li>`).join('')}</ul></div>
+  </div></div>`;}
+
+const urgent=c=>expWarn(c)||(c.phase===1&&c.miss.length>0&&dl(R(c).close)<=14);
+function filtered(){return CASES.filter(c=>(S.filter==='all'||(S.filter==='client'&&c.wait==='client')||(S.filter==='us'&&c.wait==='us')||(S.filter==='exp'&&urgent(c)))&&(!S.q||c.co.indexOf(S.q)>-1));}
+function dueCell(c){const n=nextDue(c);return n.d?`${fd(n.d)} <span class="chip ${dl(n.d)<=14&&c.phase<=1?'warn':'mute'}">${leftTxt(n.d)}</span>`:`<span class="tiny">${esc(n.l)}</span>`;}
+function caseList(){const list=filtered();
+ if(!list.length)return `<div class="card empty">条件に合う案件はありません。</div>`;
+ if(S.mode==='board')return `<div class="board">${BCOL.map((s,i)=>{const cs=list.filter(c=>c.phase===i);return `<div class="kcol"><h3><span>${s}</span><span class="num">${cs.length}</span></h3>${cs.map(c=>{const n=nextDue(c);return `<button class="kc" data-act="open" data-id="${c.id}"><b>${esc(c.co)}</b>${waitChip(c)}<span class="kc-m">${R(c).n}・${n.t} ${n.d?fd(n.d)+'（'+leftTxt(n.d)+'）':esc(n.l)}</span>${c.phase<=1?`<span class="kc-m">書類 ${gotN(c)}/3・質問 ${c.qn}/${c.qt}・加点 ${katN(c)}/3</span>`:''}${c.miss.length?`<span class="kc-x">不足：${esc(missShort(c))}</span>`:''}${expWarn(c)?`<span class="chip warn">証明書の期限まで${c.exp}日</span>`:''}</button>`;}).join('')}</div>`;}).join('')}</div>`;
+ return `<div class="card tscroll"><table style="min-width:900px"><thead><tr><th>会社</th><th>いまのステップ</th><th>公募回</th><th>次の期限</th><th>誰の番</th><th>加点</th><th>不足</th><th>更新</th></tr></thead><tbody>${list.map(c=>`<tr class="row" data-act="open" data-id="${c.id}"><td><b>${esc(c.co)}</b>${c.opened?'':'<br><span class="tiny">リンク未開封</span>'}</td><td>${pipe(c)}</td><td>${R(c).n}</td><td class="num">${dueCell(c)}</td><td>${waitChip(c)}</td><td class="num">${c.phase<=1?katN(c)+'/3':'—'}</td><td>${c.miss.length?`<span class="kc-x">${esc(missShort(c))}</span>`:'<span class="chip ok">なし</span>'}</td><td class="tiny">${c.upd}</td></tr>`).join('')}</tbody></table></div>`;}
+function casesV(){
+ const n=f=>CASES.filter(c=>f(c)).length;
+ const tiles=[['all','すべての案件',CASES.length,''],['client','お客様待ち',n(c=>c.wait==='client'),''],['us','自社の対応',n(c=>c.wait==='us'),''],['exp','期限に注意',n(urgent),'w']];
+ return `<div class="ph"><div><h1>案件</h1><p class="sub">カードを押すと、日程・チェックリスト・加点・書類を確認できます。</p></div></div>
+ <div class="tiles">${tiles.map(t=>`<button class="tile ${t[3]}" data-act="filter" data-f="${t[0]}" aria-pressed="${S.filter===t[0]}"><span class="l">${t[1]}</span><span class="n num">${t[2]}</span></button>`).join('')}</div>
+ <div class="bar"><input type="search" id="caseQ" placeholder="会社名でさがす" value="${esc(S.q)}" aria-label="会社名でさがす">
+  <div class="seg2"><button data-act="mode" data-m="board" aria-pressed="${S.mode==='board'}">ボード</button><button data-act="mode" data-m="list" aria-pressed="${S.mode==='list'}">一覧</button></div></div>
+ <div id="caseList">${caseList()}</div>`;}
+
+function nextStep(c){const a=TODAY().find(x=>x.cid===c.id&&!S.done[x.id]);
+ if(a)return{t:a.title,d:a.desc};
+ if(c.phase>=6)return{t:'入金まで完了しました',d:'効果報告の時期を管理します。次の接点は「提案」タブに出ます。'};
+ if(c.miss.length)return{t:c.wait==='client'?'お客様の対応待ちです':'対応が残っています',d:'不足：'+c.miss.join('・')+(c.wait==='client'?'。催促文をすぐに用意できます。':'')};
+ if(c.phase===0)return{t:'公募回とツールを決めましょう',d:`次の締切は ${fdw(NEXTR().close)}（${leftTxt(NEXTR().close)}）です。決まったら、専用リンクを送ります。`};
+ return{t:`「${BCOL[c.phase+1]}」に進められます`,d:'必要なものはそろっています。'};}
+function caseDetail(c){
+ const tabs=CTABS;
+ const body=({check:tabCheck,katen:tabKaten,docs:tabDocs,apply:tabApply,log:tabLog,offer:tabOffer})[S.tab](c);
+ const pd=PH_DO[Math.min(5,c.phase)];
+ return `<button class="lnk back" data-act="closecase">${ic('back','s')}案件にもどる</button>
+ <div class="ph"><div><h1>${esc(c.co)}</h1><p class="sub">${esc(c.ind)}・従業員${total(c)}名・ご担当 ${esc(c.rep)} 様・${R(c).n}　${waitChip(c)}</p></div>
+  <div class="r"><button class="btn o sm" data-act="nudge" data-id="${c.id}">${ic('chat','s')}催促文をつくる</button>${c.phase<6?`<button class="btn p sm" data-act="advance" data-id="${c.id}">次へ：${BCOL[c.phase+1]}</button>`:''}</div></div>
+ ${tl6(c)}
+ ${S.block===c.id?`<div class="card blocked">まだ進められません。残っているもの：${esc(c.miss.join('・'))}</div>`:''}
+ ${c.phase<6?`<div class="card nowdo"><div><h3>このステップで、自社がやること</h3><ul class="dots">${pd.s.map(x=>`<li>${x}</li>`).join('')}</ul></div><div><h3>お客様がやること</h3><ul class="dots">${pd.c.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>`:''}
+ <div class="tabs" role="tablist">${tabs.map(t=>`<button role="tab" data-act="tab" data-t="${t[0]}" aria-selected="${S.tab===t[0]}">${t[1]}${t[0]==='katen'&&c.phase<=1?` <span class="chip ${katN(c)===3?'ok':'warn'}">${katN(c)}/3</span>`:''}</button>`).join('')}</div>
+ ${body}`;}
+const stc=(ok,auto,doing)=>auto?'<span class="chip info">自動</span>':ok?'<span class="chip ok">済</span>':doing?'<span class="chip brand">対応中</span>':'<span class="chip warn">未</span>';
+function tabCheck(c){
+ const dlb=[0,1,2].map(i=>c.docs[i]==='got'?(i===2?'AIが読み取り済み':'発行日を読み取り済み'):c.docs[i]==='redo'?'再提出が必要':'未受領');
+ const pre=[['書類',DOCS.map((d,i)=>[d,dlb[i],stc(c.docs[i]==='got')])],
+  ['自動で取得',[['会社情報（法人番号・所在地・フリガナ）','法人番号API',stc(1,1)],['インボイス登録','公表API',stc(1,1)],['過去のIT導入補助金','交付決定の一覧と照合',stc(1,1)]]],
+  ['お客様の回答',[['質問への回答',`${c.qn}/${c.qt}`,stc(c.qn>=c.qt)]]],
+  ['事前のお手続き',[['gBizIDプライム',c.gbiz,stc(c.gbiz==='取得済み')],['連絡用メールの転送',c.fwd?'テストメールの受信で確認':'未確認',stc(c.fwd)]]],
+  ['加点（ほぼ必須の3項目）',MUST.map(k=>[k.name,c.kat[k.id]||'これから',stc(c.kat[k.id]==='済み',0,!!c.kat[k.id]&&c.kat[k.id]!=='済み')])]];
+ const post=[['申請の提出（申請マイページ）',1],['交付決定の確認',2],['契約・請求（交付決定日より後）',3],['導入・初期設定・研修',3],['支払いの証憑（振込明細など）',4],['実績報告の提出',4],['補助額の承認（SMS認証）',5],['入金の確認',5]];
+ const postRows=post.map(p=>{const done=c.phase>p[1],now=c.phase===p[1];const miss=now&&p[0].indexOf('証憑')>-1&&c.miss.indexOf('振込明細')>-1;
+  return [p[0],done?'済み':now?'このステップ':'これから',done?stc(1):miss?stc(0):now?stc(0,0,1):'<span class="chip mute">これから</span>'];});
+ const nx=nextStep(c),r=R(c);
+ const tasks=c.phase<=1?[['書類回収のフォロー','進行中'],['加点3項目の案内','進行中']]:c.phase===2?[['申請データの入力','完了'],['事務局からの連絡に対応','進行中']]:c.phase===3?[['契約書の送付','完了'],['請求書の発行','進行中']]:c.phase===4?[['実績報告の作成','進行中']]:[['入金の確認',c.phase>=6?'完了':'進行中'],['効果報告の時期を登録',c.phase>=6?'進行中':'これから']];
+ return `<div class="cols"><div class="card grp"><h3 class="big">申請まで</h3>${pre.map(x=>`<h3>${x[0]}</h3>${x[1].map(rw=>`<div class="ci"><span>${rw[0]}</span><span class="w">${esc(rw[1])}</span>${rw[2]}</div>`).join('')}`).join('')}
+  <h3 class="big" style="padding-top:18px">申請してから入金まで</h3>${postRows.map(rw=>`<div class="ci"><span>${rw[0]}</span><span class="w">${rw[1]}</span>${rw[2]}</div>`).join('')}</div>
+  <div class="stack">
+   <div class="card nx"><p class="eyebrow">次の一手</p><h3>${nx.t}</h3><p>${nx.d}</p></div>
+   <div class="card pad sidecard"><h3>PMSのタスク（自動作成）</h3>${tasks.map(t=>`<div class="ci" style="padding:8px 0;grid-template-columns:minmax(0,1fr) auto"><span>${t[0]}</span><span class="chip ${t[1]==='完了'?'ok':t[1]==='これから'?'mute':'brand'}">${t[1]}</span></div>`).join('')}</div>
+   <div class="card pad sidecard"><h3>この案件について</h3><dl class="kv"><dt>公募回</dt><dd>${r.n} ${SRCCHIP[r.src]}</dd><dt>導入ツール</dt><dd>${c.tool}</dd><dt>交付申請額</dt><dd class="num">${c.amount}万円</dd><dt>証明書の期限</dt><dd class="num">${c.exp!=null&&c.phase<=1?fd(day(c.exp)):'—'}</dd><dt>最終更新</dt><dd>${c.upd}</dd></dl></div>
+  </div></div>`;}
+function tabKaten(c){
+ const pre=c.phase<=1;
+ return `<div class="card note">${ic('star','l')}<div><h3>ほぼ必須の3項目は、${R(c).n}の締切（${fdw(R(c).close)}）までに完了が必要です</h3><p>3項目で合計${fmtMin(MUSTMIN)}が目安。どれも gBizIDプライムが必要です。お客様が操作し、当社は画面共有で案内します。IDやパスワードは受け取りません。</p></div></div>
+ <div class="card">${KATEN.map(k=>{const v=k.must?(c.kat[k.id]||'これから'):'';const ok=v==='済み';
+  return `<div class="kt ${k.must?'must':''}"><div><b>${k.must?'<span class="chip solid">ほぼ必須</span> ':''}${k.name}</b><span class="tiny">条件：${k.cond}</span><span class="tiny">担当：${k.who}</span></div><span class="ktime">${ic('clock','s')}${k.time}</span>${k.must?(pre?(ok?'<span class="chip ok">済</span>':v!=='これから'?`<span class="chip brand">${esc(v)}</span>`:'<span class="chip warn">未</span>'):'<span class="chip ok">済</span>'):'<span class="chip mute">該当すれば</span>'}</div>`;}).join('')}</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn o sm" data-act="nudge" data-id="${c.id}">加点の案内文をつくる</button><a class="btn g sm" href="${OFFICIAL.katen}" target="_blank" rel="noopener">${ic('ext','s')}公式の加点項目一覧</a></div>
+ <p class="tiny">所要時間は当社の目安です。どの枠で加点になるかは、公式の加点項目一覧（2026/10/8更新）で確認してください。</p>`;}
+function tabDocs(c){
+ if(gotN(c)===0&&c.docs.indexOf('redo')<0)return `<div class="card empty"><p><b>書類はまだ届いていません。</b></p><p>届くと、AIが読み取った内容がここに並びます。</p><p style="margin-top:10px"><button class="btn o sm" data-act="nudge" data-id="${c.id}">催促文をつくる</button></p></div>`;
+ const bad=c.check&&!c.fixed;
+ const xc=[['商号','法人番号APIの名称と一致'],['本店所在地','法人番号APIの所在地と一致'],['代表者','名刺の氏名と一致'],['インボイス登録番号','法人番号と対応']];
+ const life=(left)=>`<div class="life ${left<=14?'w':''}"><span class="tr"><i style="width:${Math.max(4,left/90*100)}%"></i></span><span>発行から3か月まで あと${left}日</span></div>`;
+ const E=(k,v,flag)=>`<div class="ex"><span class="k">${k}</span><span>${v}</span>${flag||'<span class="chip ok">一致</span>'}</div>`;
+ const exp=c.exp==null?60:c.exp;
+ const cards=[
+  c.docs[0]==='got'?`<div class="card dcard"><div class="thumb"><i></i><i></i><i></i><i></i><i></i></div><div><h3>${DOCS[0]}<span class="chip ok">受領</span></h3>${c.phase<=1?life(exp):''}${E('発行日',fd(day(exp-90)),'<span class="chip info">AI</span>')}${E('商号',esc(c.co))}${E('本店',esc(c.addr))}${E('代表者',esc(c.rep))}${E('役員数','2名','<span class="chip info">AI</span>')}</div></div>`:'',
+  c.docs[1]==='got'?`<div class="card dcard"><div class="thumb"><i></i><i></i><i></i><i></i></div><div><h3>${DOCS[1]}<span class="chip ok">受領</span></h3>${c.phase<=1?life(Math.min(88,exp+6)):''}${E('種類','その1（納税額等の証明）','<span class="chip ok">条件を満たす</span>')}${E('未納の税額','なし','<span class="chip info">AI</span>')}</div></div>`
+   :c.docs[1]==='redo'?`<div class="card dcard" style="border-color:var(--warn)"><div class="thumb"><i></i><i></i><i></i><i></i></div><div><h3>${DOCS[1]}<span class="chip warn">再提出が必要</span></h3>${E('種類','その3','<span class="chip warn">その1か、その2が必要</span>')}<p class="tiny" style="margin-top:8px">事務局からの訂正依頼を受けて、自動で「再提出」に切り替えました。</p><p style="margin-top:8px"><button class="btn o sm" data-act="nudge" data-id="${c.id}">お客様への依頼文をつくる</button></p></div></div>`:'',
+  c.docs[2]==='got'?`<div class="card dcard"><div class="thumb"><i></i><i></i><i></i><i></i><i></i><i></i></div><div><h3>${DOCS[2]}<span class="chip ok">受領</span></h3>${E('事業年度','直近期（12か月）','<span class="chip info">AI</span>')}${E('業種',esc(c.ind),'<span class="chip info">AI</span>')}${E('従業員数',`${total(c)}名（正規${c.emp[0]}・契約${c.emp[1]}・パート${c.emp[2]}）`,bad?'<span class="chip warn">回答と違う</span>':'<span class="chip info">AI</span>')}</div></div>`:''].join('');
+ return `<div class="card"><div class="grp"><h3>書類どうしの照合</h3></div><div class="xc">${c.docs[0]==='got'?xc.map(x=>`<div><span class="chip ok">${ic('check','s')}一致</span><b>${x[0]}</b><span class="muted">${x[1]}</span></div>`).join(''):'<div class="muted">履歴事項全部証明書が届くと、照合を行います。</div>'}
+  ${bad?`<div class="bad"><span class="chip warn">食い違い</span><b>従業員数</b><span>決算書は11名、お客様の回答は10名</span><span class="sp"><button class="btn p sm" data-act="fixc" data-id="${c.id}">書類の値（11名）にする</button><button class="btn g sm" data-act="fixc" data-id="${c.id}">回答の値（10名）にする</button></span></div>`:''}
+  ${c.fixed?`<div><span class="chip ok">${ic('check','s')}確認済み</span><b>従業員数</b><span class="muted">担当者が確定しました</span></div>`:''}</div></div>${cards}`;}
+function tabApply(c){
+ const f=[['法人番号','00000000000'+pad(c.no)],['事業者名',c.co],['本店所在地',c.addr],['代表者氏名',c.rep],['業種',c.ind],['従業員数（常勤）',String(c.emp[0]+c.emp[1])],['パート・アルバイト',String(c.emp[2])],['役員数','2'],['インボイス登録番号','T00000000000'+pad(c.no)],['導入するITツール',c.tool],['申請する枠','インボイス枠（インボイス対応類型）'],['交付申請額',c.amount+'万円']];
+ return `<div class="card note">${ic('shield','l')}<div><h3>申請マイページは、お客様ご本人が入力します</h3><p>下の項目は、支援事業者側の入力と確認に使います。お客様には、同じ内容を順番に表示する入力ガイドを送れます。</p><p style="margin-top:8px"><button class="btn o sm" data-act="guide" data-id="${c.id}">入力ガイドをお客様に送る</button></p></div></div>
+ <div class="card">${f.map(rw=>`<div class="ap"><span class="k">${rw[0]}</span><span class="v">${esc(rw[1])}</span><button class="btn g sm" data-act="copy" data-text="${esc(rw[1])}">${ic('copy','s')}コピー</button></div>`).join('')}</div>
+ <div><button class="btn o sm" data-act="msg" data-m="CSVを書き出しました（試作のためファイルは作られません）">CSVで書き出す</button></div>`;}
+function tabLog(c){
+ const L=[['a','名刺から案件を作成。公開情報で会社情報を取得']];
+ if(c.phase>=1)L.push(['s','LINEで専用リンクを送付']);
+ if(c.opened&&c.phase>=1)L.push(['c','お客様がページを開封']);
+ if(gotN(c))L.push(['c',`書類をアップロード（${gotN(c)}点）`],['a','AIが読み取り、公開情報と照合']);
+ if(c.qn)L.push(['c','質問に回答']);
+ if(c.fwd)L.push(['a','転送メールの受信を確認']);
+ if(katN(c))L.push(['c',`加点の登録（${katN(c)}/3）`]);
+ if(c.phase>=2)L.push(['c','申請マイページで宣誓して提出']);
+ if(c.mail)L.push(['m','事務局からメールを受信']);
+ if(c.phase>=3)L.push(['a','交付決定を確認。契約書と請求書の下書きを作成']);
+ if(c.phase>=4)L.push(['c','支払いが完了']);
+ if(c.phase>=5)L.push(['c','実績報告を提出']);
+ if(c.phase>=6)L.push(['a','入金を確認。顧客台帳に引き継ぎ']);
+ const n=L.length;
+ return `<div class="card"><ul class="tl">${L.map((l,i)=>`<li><span class="t">${i===n-1?c.upd:(n-1-i)*2+'日前'}</span><span><i class="dot ${l[0]==='a'||l[0]==='m'?'a':l[0]==='c'?'c':''}"></i></span><div>${l[1]} <span class="chip ${l[0]==='c'?'amber':l[0]==='s'?'brand':'info'}">${l[0]==='c'?'お客様':l[0]==='s'?'スタッフ':'自動'}</span>${l[0]==='m'?`<div class="sum"><b>AIの要約</b><br>納税証明書の種類が「その3」になっている。「その1」または「その2」での再提出が必要。期限の記載あり。<br><span class="tiny">対応：書類を「再提出」に変更し、今日やることに追加しました。</span></div>`:''}</div></li>`).join('')}</ul></div>
+ <div class="card pad" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="text" id="memo" placeholder="メモを残す（例：来週月曜に電話で確認）" style="flex:1;min-width:200px"><button class="btn g sm" data-act="msg" data-m="メモを記録しました">記録する</button></div>`;}
+function tabOffer(c){const os=OPPS.filter(o=>o.cid===c.id);
+ return os.length?`<div class="opps">${os.map(oppCard).join('')}</div>`:`<div class="card empty"><p><b>今は、提案のタイミングではありません。</b></p><p>交付決定のあと、保守の更新時期や業種に合わせた提案がここに出ます。</p></div>`;}
+const oppCard=o=>{const c=byId(o.cid);return `<article class="card opp"><p><span class="chip brand">${o.kind}</span></p><h3>${esc(c.co)}</h3><p>${o.why}</p><p class="of">${ic('bulb','s')} ${o.offer}</p><button class="btn o sm" data-act="offer" data-o="${o.id}">${ic('spark','s')}提案メモをつくる</button></article>`;};
+
+function crmV(){
+ const next=c=>c.phase>=6?'保守の更新（'+fd(day(62))+'）・効果報告':c.phase>=3?'実績報告（期限 '+fd(R(c).end)+'）':c.phase===2?'交付決定（'+fd(R(c).decide)+' 予定）':'申請の準備中';
+ return `<div class="ph"><div><h1>顧客・提案</h1><p class="sub">申請で集めた情報が、そのまま顧客台帳になります。提案のきっかけは自動で見つけます。</p></div></div>
+ <h2 class="sec-h">いま提案できるお客様</h2>
+ <div class="opps">${OPPS.map(oppCard).join('')}</div>
+ <h2 class="sec-h" style="margin-top:6px">顧客台帳</h2>
+ <div class="card tscroll"><table style="min-width:780px"><thead><tr><th>会社</th><th>業種</th><th>従業員</th><th>導入ツール</th><th>交付額</th><th>ステップ</th><th>次の接点</th></tr></thead><tbody>${CASES.map(c=>`<tr class="row" data-act="open" data-id="${c.id}"><td><b>${esc(c.co)}</b></td><td>${esc(c.ind)}</td><td class="num">${total(c)}名</td><td>${c.tool}</td><td class="num">${c.phase>=3?c.amount+'万円':'—'}</td><td>${BCOL[c.phase]}</td><td>${next(c)}</td></tr>`).join('')}</tbody></table></div>`;}
+
+/* ---------- お助け情報（スタッフ） ---------- */
+function rateTable(){return `<div class="tscroll"><table style="min-width:520px"><thead><tr><th>対象</th><th>補助額</th><th>補助率</th></tr></thead><tbody>
+ <tr><td>ソフトウェア・導入関連費</td><td>50万円以下の部分</td><td>3/4以内（小規模事業者は4/5以内）</td></tr>
+ <tr><td>同上</td><td>50万円超〜350万円の部分</td><td>2/3以内（「会計」「受発注」「決済」のうち2機能以上が条件）</td></tr>
+ <tr><td>PC・タブレットなど</td><td>10万円以下</td><td>1/2以内</td></tr>
+ <tr><td>レジ・券売機など</td><td>20万円以下</td><td>1/2以内</td></tr></tbody></table></div>`;}
+function helpV(){
+ const nr=NEXTR();
+ return `<div class="ph"><div><h1>お助け情報</h1><p class="sub">AI導入補助金（インボイス枠・インボイス対応類型）の要点です。お客様の画面にも、やさしい言葉で同じ内容を載せています。</p></div><div class="r"><a class="btn o sm" href="${OFFICIAL.top}" target="_blank" rel="noopener">${ic('ext','s')}公式サイト</a></div></div>
+ <div class="hgrid">
+  <div class="card"><p class="eyebrow">制度</p><h3>デジタル化・AI導入補助金2026</h3><p class="bodyt">旧IT導入補助金。中小企業・小規模事業者がITツールを導入する費用の一部を補助します。運営は中小機構の事務局です。</p></div>
+  <div class="card"><p class="eyebrow">AI Officeの場合</p><h3>インボイス枠（インボイス対応類型）</h3><p class="bodyt">「会計」「受発注」「決済」のうち1機能以上が必須。ソフト・導入関連費の補助額は最大350万円です。</p></div>
+  <div class="card"><p class="eyebrow">次の締切</p><h3 class="num">${nr.n}：${fdw(nr.close)} 17:00</h3><p class="bodyt">${leftTxt(nr.close)}。交付決定は ${fd(nr.decide)} 予定、実績報告の期限は ${fd(nr.end)}。</p></div>
+ </div>
+ <div class="card note w">${ic('alert','l')}<div><h3>必ずお客様に伝えること</h3><p>交付決定の前に契約・発注・支払いをすると、補助金は受けられません。補助金は後払いで、いったん全額を支払います。入金後も、期限内の効果報告が必要です。賃上げ目標が未達の場合は、返還を求められることがあります。</p></div></div>
+ <h2 class="sec-h">補助率と補助額</h2>
+ <div class="card">${rateTable()}</div>
+ <h2 class="sec-h">公募回のスケジュール</h2>
+ <div class="card tscroll"><table style="min-width:720px"><thead><tr><th>公募回</th><th>申請の締切</th><th>交付決定</th><th>事業実施・実績報告の期限</th><th>入金の目安</th><th>状況</th><th>確認</th></tr></thead><tbody>${ROUNDS.map(r=>{const o=dl(r.close)>=0,nx=r===nr;return `<tr class="${nx?'hl':''}"><td><b>${r.n}</b></td><td class="num">${fdw(r.close)}</td><td class="num">${fd(r.decide)}</td><td class="num">${fd(r.end)}</td><td>${r.pay}</td><td>${nx?`<span class="chip warn">受付中・${leftTxt(r.close)}</span>`:o?'<span class="chip brand">受付予定</span>':'<span class="chip mute">締切済み</span>'}</td><td>${SRCCHIP[r.src]}</td></tr>`;}).join('')}</tbody></table></div>
+ <p class="tiny">締切はいずれも17:00。「予定・要確認」は、公式のスケジュールページで個別に確認できなかった値です。入金の目安は公式の日程がないため、実績報告を期限に出した場合の当社の見込みです。</p>
+ <h2 class="sec-h">6つのステップと、やること</h2>
+ <div class="card tscroll"><table class="phs" style="min-width:720px"><thead><tr><th>ステップ</th><th>自社がやること</th><th>お客様がやること</th></tr></thead><tbody>${PH.map((p,i)=>`<tr><td>${i+1}. ${p}</td><td><ul>${PH_DO[i].s.map(x=>`<li>${x}</li>`).join('')}</ul></td><td><ul>${PH_DO[i].c.map(x=>`<li>${x}</li>`).join('')}</ul></td></tr>`).join('')}<tr><td>その後</td><td><ul><li>効果報告の期限を管理する</li><li>保守の更新と追加の提案</li></ul></td><td><ul><li>期限内に効果報告を提出する</li></ul></td></tr></tbody></table></div>
+ <h2 class="sec-h">加点項目の一覧と所要時間 <span class="chip solid">ほぼ必須 3項目</span></h2>
+ <div class="card">${KATEN.map(k=>`<div class="kt ${k.must?'must':''}"><div><b>${k.must?'<span class="chip solid">ほぼ必須</span> ':''}${k.name}</b><span class="tiny">条件：${k.cond}</span><span class="tiny">${k.note}</span></div><span class="ktime">${ic('clock','s')}${k.time}</span><span class="chip mute">${esc(k.who.replace(/（.*?）/,''))}</span></div>`).join('')}</div>
+ <p class="tiny">項目は公式の加点項目一覧（2026/10/8更新）より。所要時間は当社の目安です。どの枠で加点になるかは公式の一覧で確認してください。ほぼ必須の3項目は、合計${fmtMin(MUSTMIN)}が目安です。</p>
+ <h2 class="sec-h">公式サイト</h2>
+ <div class="card links">${LINKLIST.map(l=>linkRow(l[0])).join('')}</div>
+ <div class="card pad">${CALL}</div>`;}
+
+function linksV(){
+ return `<div class="ph"><div><h1>連携</h1><p class="sub">普段使っているツールにつなぐと、転記や通知が自動になります。</p></div></div>
+ <div class="lk">${LINKS.map(l=>`<div class="card lkc"><div class="h"><h3>${l.n}</h3><button class="sw" role="switch" aria-checked="${!!S.links[l.id]}" aria-label="${l.n}" data-act="tog" data-k="links.${l.id}"><i></i></button></div><p>${l.d}</p><p>${S.links[l.id]?'<span class="chip ok">接続中</span>':'<span class="chip mute">未接続</span>'}</p></div>`).join('')}</div>
+ <h2 class="sec-h" style="margin-top:6px">自動で動くルール</h2>
+ <div class="card">${RULES.map((r,i)=>`<div class="rule"><span><b>${r[0]}</b></span><span class="ar">${ic('arrow','s')}</span><span class="then">${r[1]}</span><button class="sw" role="switch" aria-checked="${!!S.rules[i]}" aria-label="${r[0]}" data-act="tog" data-k="rules.${i}"><i></i></button></div>`).join('')}</div>`;}
+
+const brandPrev=()=>`<div class="p-head"><span class="b">${esc(S.t.name)}｜AI導入補助金コンシェルジュ</span><h1>申請のご準備</h1><p>担当：${esc(S.t.staff)}</p></div><div style="padding:12px 14px;font-size:12.5px;color:var(--body)">転送先 <span class="num">${esc(S.t.fwd)}</span></div>`;
+function settingsV(){
+ const km=[['share','画面共有で一緒に操作する（おすすめ）','お客様が操作し、担当者が横で案内します。IDやパスワードは受け取りません。'],['self','お客様に案内を見て操作してもらう','手順と所要時間をお客様の画面に表示します。']];
+ return `<div class="ph"><div><h1>設定</h1><p class="sub">自社の名前と色、加点の進め方、お客様に聞く質問を決めます。変更は、お客様の画面にすぐ反映されます。</p></div></div>
+ <div class="set">
+  <div class="card pad" style="display:flex;flex-direction:column;gap:12px"><h2 class="sec-h">ブランド</h2>
+   <div class="fld"><label for="tName">会社名</label><input type="text" id="tName" data-bind="t.name" value="${esc(S.t.name)}"></div>
+   <div class="fld"><label for="tStaff">担当者名</label><input type="text" id="tStaff" data-bind="t.staff" value="${esc(S.t.staff)}"></div>
+   <div class="fld"><label for="tFwd">事務局メールの転送先</label><input type="email" id="tFwd" data-bind="t.fwd" value="${esc(S.t.fwd)}"></div>
+   <div class="fld"><span class="lb">色</span><div class="sws">${BRANDS.map((b,i)=>`<button class="swatch" style="background:${b.l}" data-act="brand" data-i="${i}" aria-pressed="${S.t.brand===i}" aria-label="${b.n}" title="${b.n}"></button>`).join('')}</div></div>
+  </div>
+  <div class="stack"><p class="eyebrow">お客様の画面での見え方</p><div class="prev" id="brandPrev">${brandPrev()}</div><div><button class="btn o sm" data-act="view" data-v="client">お客様の画面で確認する</button></div></div>
+ </div>
+ <div class="card pad" style="display:flex;flex-direction:column;gap:12px"><h2 class="sec-h">加点3項目の進め方</h2>
+  <div class="radio">${km.map(k=>`<label class="${S.katenMode===k[0]?'on':''}"><input type="radio" name="km" data-act="km" data-v="${k[0]}" ${S.katenMode===k[0]?'checked':''}><span><b>${k[1]}</b><span class="tiny">${k[2]}</span></span></label>`).join('')}</div></div>
+ <div class="card pad" style="display:flex;flex-direction:column;gap:10px"><h2 class="sec-h">公募回の日程</h2><p class="tiny">事務局の発表に合わせて、提供元がまとめて更新します。新しい案件は、受付中でいちばん近い公募回が初期値になります。</p>
+  <div class="tscroll"><table style="min-width:560px"><thead><tr><th>公募回</th><th>締切</th><th>交付決定</th><th>実績報告の期限</th><th>確認</th></tr></thead><tbody>${OPENR().map(r=>`<tr><td><b>${r.n}</b></td><td class="num">${fdw(r.close)}</td><td class="num">${fd(r.decide)}</td><td class="num">${fd(r.end)}</td><td>${SRCCHIP[r.src]}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="card pad"><h2 class="sec-h">お客様に聞く質問</h2><p class="tiny" style="margin:4px 0 8px">書類や公開情報から分かることは、聞きません。オフにした質問は、お客様の画面から消えます。</p>
+  ${S.questions.map((q,i)=>`<div class="qrow"><span>${esc(q.label)}${q.custom?' <span class="chip mute">追加した質問</span>':''}</span><button class="sw" role="switch" aria-checked="${q.on}" aria-label="${esc(q.label)}" data-act="tog" data-k="questions.${i}.on"><i></i></button></div>`).join('')}
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><input type="text" id="newQ" placeholder="質問を追加（例：導入したい時期）" style="flex:1;min-width:200px"><button class="btn g sm" data-act="addq">${ic('plus','s')}追加する</button></div></div>`;}
+
+/* ================= CLIENT ================= */
+function prefill(){const d1=cl.docs[0]==='got',d3=cl.docs[2]==='got',na='書類のアップ後に自動で入ります';
+ return [['会社名',CO.name+'（'+CO.kana+'）','api'],['法人番号',CO.num,'api'],['所在地',CO.zip+' '+CO.addr,'api'],['インボイス登録','登録済み','api'],['過去のIT導入補助金','該当なし','api'],
+  ['代表者',CO.rep+'（'+CO.repKana+'）','card'],['代表電話',CO.tel,'card'],['携帯電話',CO.mobile,'card'],['メール',CO.mail,'card'],
+  ['役員数',d1?'2名':na,d1?'doc':'na'],['業種・店舗数',d3?'管工事業・1店舗':na,d3?'doc':'na'],['従業員数',d3?'正規6・契約1・パート4':na,d3?'doc':'na']];}
+const SRC={api:'<span class="chip info">公開情報</span>',card:'<span class="chip amber">名刺</span>',doc:'<span class="chip brand">書類</span>',ans:'<span class="chip mute">ご回答</span>',na:''};
+function pBar(t){return `<div class="p-bar"><button data-act="cnav" data-s="home" aria-label="もどる">${ic('back')}</button><h1>${t}</h1></div>`;}
+function cHome(){const s=cStat(),r=R(MIDORI);
+ const T=[{k:'docs',i:'camera',t:'書類をアップする',d:s.later?`${s.later}点は後日でも大丈夫です`:'3点。写真でも大丈夫です',ok:s.got===3,r:`${s.got}/3`,m:s.rem.docs,tm:s.rem.docs?'手元にあれば約5分':'後日でOK'},
+  {k:'qs',i:'chat',t:`${s.qt}つの質問に答える`,d:'書類からは分からないことだけ',ok:s.qn>=s.qt,r:`${s.qn}/${s.qt}`,m:s.rem.qs},
+  {k:'proc',i:'shield',t:'事前のお手続き',d:'gBizIDプライムと、連絡用メール',ok:s.procN===2,r:`${s.procN}/2`,m:s.rem.proc},
+  {k:'katen',i:'star',t:'審査で有利になる3つの登録',d:'締切までに必要な「加点」です',ok:s.kn===3,r:`${s.kn}/3`,m:s.rem.katen,must:true},
+  {k:'confirm',i:'check',t:'内容を確認して送信',d:'自動で入った内容を見るだけです',ok:cl.sent,r:'',m:s.rem.confirm}];
+ const left=T.filter(t=>!t.ok).length,tot=3+s.qt+2+3+1,doneN=s.got+s.qn+s.procN+s.kn+(cl.sent?1:0);
+ const pf=prefill().filter(x=>x[2]!=='na');
+ return `<div class="p-head"><span class="b">${esc(S.t.name)}｜AI導入補助金コンシェルジュ</span><h1>${left?`ご準備は、あと${left}つです`:'ご準備はすべて完了しました'}</h1><p>${esc(CO.name)} ${esc(sei(MIDORI))}様</p>
+  <div class="p-meta"><span>申請締切 ${fdw(r.close)}・${leftTxt(r.close)}</span>${left?`<span>残りの作業 ${fmtMin(s.remAll)}（目安）</span>`:''}</div>
+  <div class="prog" role="progressbar" aria-label="準備の進み具合" aria-valuenow="${Math.round(doneN/tot*100)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(3,doneN/tot*100)}%"></i></div></div>
+ <div class="p-body">
+  <details class="pre tlbox"><summary>${ic('cal')}申請から入金までの流れ<span class="chip solid">いま：${PH[MIDORI.phase]}</span></summary><div class="rows">${vt(MIDORI)}<p class="tiny">入金の時期は目安です。<button class="lnk" data-act="cnav" data-s="help">くわしく見る</button></p></div></details>
+  <p class="p-lead">どの順番でも進められます。途中で閉じても、続きから再開できます。</p>
+  <details class="pre"><summary>${ic('check')}${pf.length}項目は、すでに入力してあります</summary><div class="rows">${pf.map(x=>`<div class="ir"><span class="k">${x[0]}</span><span class="v">${esc(x[1])}</span><span class="s">${SRC[x[2]]}</span></div>`).join('')}</div></details>
+  ${T.map(t=>`<button class="task ${t.ok?'done':''} ${t.must&&!t.ok?'must':''}" data-act="cnav" data-s="${t.k}"><span class="ti">${ic(t.ok?'check':t.i,'l')}</span><span>${t.must&&!t.ok?'<span class="chip solid mk">ほぼ必須</span>':''}<b>${t.t}</b><span>${t.d}</span></span><span class="r">${t.ok?'<span class="chip ok">完了</span>':`<span class="tm">${t.tm||fmtMin(t.m)}</span>${t.r?`<span class="num">${t.r}</span>`:''}`}</span></button>`).join('')}
+  ${cl.guide?`<button class="task" data-act="cnav" data-s="guide"><span class="ti">${ic('doc','l')}</span><span><b>申請マイページの入力ガイド</b><span>担当者から届きました</span></span><span class="r"><span class="chip brand">新着</span></span></button>`:''}
+  <button class="task" data-act="cnav" data-s="help"><span class="ti">${ic('book','l')}</span><span><b>AI導入補助金のきほん</b><span>流れ・日程・注意点・公式サイト</span></span><span class="r">${ic('arrow','s')}</span></button>
+  <button class="task" data-act="cnav" data-s="manual"><span class="ti">${ic('q','l')}</span><span><b>このページの使い方</b><span>画面ごとの手順</span></span><span class="r">${ic('arrow','s')}</span></button>
+  <p class="tiny">作業時間は当社の目安です。書類を役所で取る時間は含みません。</p>
+  <div class="p-help"><span>分からないことは、担当の${esc(staffShort())}まで。</span><button class="btn g sm" data-act="msg" data-m="実際の画面では、LINEのトークが開きます">${ic('chat','s')}LINEで質問</button></div></div>`;}
+const HOW=['法務局の窓口か、オンライン（登記・供託オンライン申請システム）で請求できます。発行から3か月以内のものをご用意ください。','税務署の窓口か、e-Taxで請求できます。種類は「その1」または「その2」です。「その3」は使えません。','顧問税理士の方に「直近期の申告書一式をPDFでください」と頼むのが、いちばん早い方法です。'];
+const DOCT=['手元になければ：オンライン請求で約15分＋郵送で数日','手元になければ：e-Taxで約15分、窓口なら30分ほど','税理士に頼めば約5分'];
+const EXT=()=>[[['発行日',fd(day(-21))+'（3か月以内）'],['商号',CO.name],['代表取締役',CO.rep],['役員数','2名']],[['発行日',fd(day(-15))+'（3か月以内）'],['種類','その1'],['未納の税額','なし']],[['業種','管工事業'],['従業員数','正規6・契約1・パート4'],['店舗数','1']]];
+function cDocs(){const sub=['法務局発行・発行から3か月以内','税務署発行・3か月以内・「その1」か「その2」','貸借対照表／損益計算書／販管費の内訳／法人事業概況説明書'];
+ return pBar('書類をアップする')+`<div class="p-body"><p class="p-lead">スマホで撮った写真でも、PDFでも大丈夫です。アップするとAIが読み取り、会社情報を自動で入力します。</p>
+ <div class="chips"><span class="chip mute">${ic('clock','s')}手元にあれば、3点で約5分</span></div>
+ ${DOCS.map((d,i)=>{const s=cl.docs[i];return `<div class="doc ${s==='got'?'got':''}"><div class="t"><div><h3>${d}</h3><p class="s">${sub[i]}</p></div>${s==='got'?'<span class="chip ok">受け取りました</span>':s==='later'?'<span class="chip amber">後日アップ</span>':s==='reading'?'<span class="chip info">読み取り中</span>':'<span class="chip mute">まだ</span>'}</div>
+  ${s==='reading'?`<div class="read"><span class="spin"></span>AIが内容を読み取っています</div>`
+   :s==='got'?`<div>${EXT()[i].map(x=>`<div class="exr"><span>${x[0]}</span><b>${esc(x[1])}</b></div>`).join('')}</div><div class="more"><button class="lnk" data-act="redo" data-i="${i}">撮り直す</button></div>`
+   :`<div class="acts"><label class="btn p sm file">${ic('camera','s')}撮影・ファイルを選ぶ<input type="file" id="file${i}" data-file="${i}" accept="image/*,application/pdf"></label><button class="btn o sm" data-act="upload" data-i="${i}">サンプルで試す</button></div>
+     <p class="tiny">${DOCT[i]}</p>
+     <div class="more"><button class="lnk" data-act="how" data-i="${i}">どこでもらえる？</button>${s==='later'?'':`<button class="lnk" data-act="later" data-i="${i}">まだ手元にない</button>`}</div>${cl.help===i?`<p class="how">${HOW[i]}</p>`:''}`}
+ </div>`;}).join('')}
+ <p class="tiny">うまく読み取れるコツ：書類の四すみが入るように、真上から、影が入らない明るい場所で。</p>
+ <button class="btn p lg block" data-act="cnav" data-s="home">保存してもどる</button></div>`;}
+function cQs(){const s=cStat(),a=cl.ans;
+ return pBar(`${s.qt}つの質問`)+`<div class="p-body"><p class="p-lead">書類からは分からないことだけ、お聞きします。入力は自動で保存されます。</p><div class="chips"><span class="chip mute">${ic('clock','s')}約5分</span></div>
+ ${s.qs.map((q,i)=>{const ok=qDone(q),hd=`<span>${'①②③④⑤⑥⑦⑧'[i]||''} ${esc(q.label)}</span><span class="chip ok okc">OK</span>`;
+  if(q.type==='wage')return `<div data-q="${q.id}" class="q ${ok?'okq':''}"><span class="lb">${hd}</span><div class="row2"><input type="number" inputmode="numeric" id="${q.id}" data-bind="client.ans.${q.id}" placeholder="時給（円）" value="${esc(a[q.id])}" aria-label="時給（円）"><input type="text" id="${q.id}n" data-bind="client.ans.${q.id}n" placeholder="該当する方のお名前" value="${esc(a[q.id+'n'])}" aria-label="該当する方のお名前"></div><p class="h">${q.hint}</p></div>`;
+  if(q.type==='seg')return `<div data-q="${q.id}" class="q ${ok?'okq':''}"><span class="lb">${hd}</span><div class="seg">${q.opts.map(o=>`<button data-act="seg" data-k="${q.id}" data-v="${o}" aria-pressed="${a[q.id]===o}">${o}</button>`).join('')}</div>${a[q.id]==='あり'?`<select id="${q.id}w" data-bind="client.ans.${q.id}w" aria-label="引上げ幅の目安"><option value="">引上げ幅の目安（任意）</option>${q.extra.map(o=>`<option ${a[q.id+'w']===o?'selected':''}>${o}</option>`).join('')}</select><p class="h">賃上げは審査で加点になります。くわしくは担当がご相談にのります。</p>`:''}</div>`;
+  return `<div data-q="${q.id}" class="q ${ok?'okq':''}"><label for="${q.id}">${hd}</label><input type="text" id="${q.id}" data-bind="client.ans.${q.id}" placeholder="${esc(q.ph||'')}" value="${esc(a[q.id])}"></div>`;}).join('')}
+ <button class="btn p lg block" data-act="cnav" data-s="home">保存してもどる</button></div>`;}
+function cProc(){const a=cl.ans;
+ return pBar('事前のお手続き')+`<div class="p-body"><p class="p-lead">申請に必要な準備が2つあります。IDやパスワードを当社にお知らせいただく必要はありません。</p>
+ <div class="q ${a.gbiz==='取得済み'?'okq':''}"><span class="lb"><span>① gBizIDプライム</span><span class="chip ok okc">OK</span></span>
+  <div class="chips"><span class="chip mute">${ic('clock','s')}申請 約15分</span><span class="chip mute">マイナンバーカードでのオンライン申請なら最短即日</span></div>
+  <div class="seg">${['取得済み','申請中','これから'].map(o=>`<button data-act="seg" data-k="gbiz" data-v="${o}" aria-pressed="${a.gbiz===o}">${o}</button>`).join('')}</div>
+  <p class="h">加点の登録にも使います。いちばん先に済ませてください。</p>
+  ${a.gbiz&&a.gbiz!=='取得済み'?`<p class="how">マイナンバーカードがあれば、スマホからオンラインで申請できます。<br><a href="${OFFICIAL.gbiz}" target="_blank" rel="noopener">gBizIDの公式ページを開く</a></p>`:''}</div>
+ <div class="q ${cl.fwd==='ok'?'okq':''}"><label for="mail"><span>② 補助金の連絡用メールアドレス</span><span class="chip ok okc">OK</span></label>
+  <div class="chips"><span class="chip mute">${ic('clock','s')}約10分</span></div>
+  <input type="email" id="mail" data-bind="client.ans.mail" placeholder="例）hojokin@midori-setsubi.example" value="${esc(a.mail)}">
+  <p class="h">事務局からの連絡を受け取る、貴社で管理されているアドレスを1つご用意ください。</p>
+  <p class="h">届いたメールが下のアドレスにも転送されるよう、設定をお願いします。</p>
+  <div class="addr"><code>${esc(S.t.fwd)}</code><button class="btn g sm" data-act="copy" data-text="${esc(S.t.fwd)}">${ic('copy','s')}コピー</button></div>
+  ${cl.fwd==='ok'?`<p class="read" style="color:var(--ok)">${ic('check')}転送を確認しました</p>`:cl.fwd==='checking'?`<div class="read"><span class="spin"></span>テストメールを送って確認しています</div>`:`<button class="btn o sm" data-act="fwdtest">テストメールで転送を確認する</button>${cl.fwd==='need'?'<p class="h" style="color:var(--warn);font-weight:700">先に、連絡用メールアドレスを入力してください。</p>':''}`}</div>
+ <button class="btn p lg block" data-act="cnav" data-s="home">保存してもどる</button></div>`;}
+function cKaten(){const s=cStat(),r=R(MIDORI);
+ const others=KATEN.filter(k=>['k4','k6','k8','k9','k10'].indexOf(k.id)>-1);
+ return pBar('審査で有利になる3つの登録')+`<div class="p-body">
+ <p class="p-lead">取り組むと審査で有利になる「加点」があります。特に次の3つは、ほぼ必須と考えてください。</p>
+ <div class="warnbox"><b>${r.n}の締切（${fdw(r.close)}）の時点で、3つとも済んでいることが条件です。</b><br>合計 ${fmtMin(MUSTMIN)}（目安）。どれも gBizIDプライムを使います。${s.kn<3?`<br>残りは ${fmtMin(s.rem.katen)} です。`:''}</div>
+ ${MUST.map((k,i)=>{const v=cl.kat[k.id]||'';return `<div class="q ${v==='済み'?'okq':''}"><span class="lb"><span>${'①②③'[i]} ${k.name}</span><span class="chip ok okc">OK</span></span>
+  <div class="chips"><span class="chip mute">${ic('clock','s')}${k.time}</span><span class="chip mute">${k.org}</span></div>
+  <p class="h">条件：${k.cond}</p>
+  <button class="lnk" data-act="khow" data-k="${k.id}">${cl.khow===k.id?'やり方を閉じる':'やり方を見る'}</button>
+  ${cl.khow===k.id?`<div class="how"><ol>${k.how.map(h=>`<li>${h}</li>`).join('')}</ol><p style="margin-top:6px">${k.note}</p></div>`:''}
+  <div class="seg">${['済み','これから','一緒にやりたい'].map(o=>`<button data-act="kseg" data-k="${k.id}" data-v="${o}" aria-pressed="${v===o}">${o}</button>`).join('')}</div>
+  ${v==='一緒にやりたい'?`<p class="how">担当の${esc(staffShort())}から、画面共有の日程をご連絡します（15〜30分）。IDやパスワードをお伝えいただく必要はありません。</p>`:''}</div>`;}).join('')}
+ <details class="pre"><summary>${ic('star')}当てはまれば加点になるもの</summary><div class="rows">${others.map(k=>`<div class="ir" style="grid-template-columns:minmax(0,1fr) auto"><span class="v"><b>${k.name}</b><br><span class="tiny">${k.note}</span></span><span class="s"><span class="tiny num">${k.time}</span></span></div>`).join('')}<p class="tiny" style="padding-top:8px">当てはまりそうなものがあれば、担当にお知らせください。</p></div></details>
+ <a class="lnk" href="${OFFICIAL.katen}" target="_blank" rel="noopener">${ic('ext','s')}公式の加点項目一覧を見る</a>
+ <button class="btn p lg block" data-act="cnav" data-s="home">保存してもどる</button></div>`;}
+function cConfirm(){const s=cStat(),a=cl.ans;
+ const rows=prefill().concat(s.qs.map(q=>[q.label,q.type==='wage'?(a[q.id]?Number(a[q.id]).toLocaleString()+'円':'')+(a[q.id+'n']?'／'+a[q.id+'n']:''):(a[q.id]||'')+(a[q.id+'w']?'／'+a[q.id+'w']:''),'ans']),[['連絡用メール',a.mail||'','ans'],['gBizIDプライム',a.gbiz||'','ans']],MUST.map(k=>['加点：'+k.name.replace('への登録','').replace(' の実施','').replace('の活用',''),cl.kat[k.id]||'','ans']));
+ return pBar('内容の確認')+`<div class="p-body"><p class="p-lead">名刺・公開情報・アップいただいた書類から、自動で入力しました。違うところだけ「修正」を押してください。</p><div class="chips"><span class="chip mute">${ic('clock','s')}約3分</span></div>
+ <div class="pre"><div class="rows" style="padding-top:2px">${rows.map((x,i)=>{const v=cl.fixes[i]!=null?cl.fixes[i]:x[1];const na=x[2]==='na'||!v;
+  return `<div class="ir"><span class="k">${esc(x[0])}</span>${cl.editing===i?`<span class="v"><input type="text" id="fix${i}" data-bind="client.fixes.${i}" value="${esc(v)}" aria-label="${esc(x[0])}を修正"></span><span class="s"><button class="lnk" data-act="fixok">OK</button></span>`
+   :`<span class="v ${na?'na':''}">${na?(x[2]==='na'?esc(x[1]):'（未入力）'):esc(v)}</span><span class="s">${cl.fixes[i]!=null?'<span class="chip ok">修正済み</span>':SRC[x[2]]}${x[2]==='na'?'':`<button class="lnk" data-act="fix" data-i="${i}">修正</button>`}</span>`}</div>`;}).join('')}</div></div>
+ <label class="agree" for="agree"><input type="checkbox" id="agree" data-bind="client.agree" data-re="1" ${cl.agree?'checked':''}>上の内容で間違いありません</label>
+ <button class="btn p lg block" data-act="send" ${cl.agree?'':'disabled'}>この内容で送信する</button>
+ <p class="tiny">まだそろっていないものがあっても送信できます。あとからこのページで追加できます。</p></div>`;}
+function cDone(){syncMidori();const m=MIDORI.miss,r=R(MIDORI);
+ return pBar('送信しました')+`<div class="p-body"><div class="fin"><span class="ring">${ic('check','l')}</span><h2>ありがとうございます</h2><p class="p-lead">${esc(staffShort())}が内容を確認し、申請の準備を進めます。</p>
+ <div class="left"><b>残っているお手続き</b>${m.length?m.map(x=>`<div>□ ${esc(x)}</div>`).join('')+`<div class="tiny">締切 ${fdw(r.close)}（${leftTxt(r.close)}）までにお願いします。</div>`:'<div>ありません。あとは当社で進めます。</div>'}</div></div>
+ <button class="btn o lg block" data-act="cnav" data-s="home">やることリストにもどる</button></div>`;}
+function cGuide(){const f=[['事業者名',CO.name],['法人番号',CO.num],['本店所在地',CO.addr],['代表者氏名',CO.rep],['担当者の携帯電話',CO.mobile],['連絡用メール',cl.ans.mail||'（事前のお手続きで入力）']];
+ return pBar('申請マイページの入力ガイド')+`<div class="p-body"><p class="p-lead">申請マイページを開き、上から順に「コピー」して貼り付けてください。入力はお客様ご自身で行っていただきます。</p>
+ ${f.map((x,i)=>`<div class="q"><span class="lb"><span>${i+1}. ${x[0]}</span></span><div class="addr"><code>${esc(x[1])}</code><button class="btn g sm" data-act="copy" data-text="${esc(x[1])}">${ic('copy','s')}コピー</button></div></div>`).join('')}
+ <button class="btn p lg block" data-act="cnav" data-s="home">もどる</button></div>`;}
+function cHelp(){const r=R(MIDORI);
+ const faq=[['どのくらい戻ってきますか？','補助額50万円までの部分は3/4（小規模事業者は4/5）、50万円を超える部分は2/3です。ソフトなどの上限は350万円です。担当が金額を試算します。'],
+  ['お金はいつ戻ってきますか？',`補助金は後払いです。いったん全額をお支払いいただき、実績報告のあとに入金されます。今回の場合、${r.pay}が目安です。`],
+  ['gBizIDプライムとは？','国の手続きで使う、会社のための共通IDです。マイナンバーカードがあればオンラインで申請できます。'],
+  ['IDやパスワードを伝える必要はありますか？','ありません。加点の登録などは、画面共有で一緒に操作します。'],
+  ['入金のあとに、やることはありますか？','期限内に「効果報告」を出す必要があります。時期が来たら担当からご案内します。']];
+ return pBar('AI導入補助金のきほん')+`<div class="p-body">
+ <p class="p-lead">AI導入補助金（正式名：デジタル化・AI導入補助金）は、中小企業がITツールを導入する費用の一部を、国が補助する制度です。</p>
+ <div class="pre"><div class="rows" style="padding-top:10px"><p style="font-weight:700;font-size:14px;margin-bottom:4px">いまどこ？</p>${vt(MIDORI)}<p class="tiny" style="padding-top:6px">日程は事務局の発表で変わることがあります。入金の時期は目安です。</p></div></div>
+ <div class="warnbox"><b>大事な注意</b><br>・交付決定（${fd(r.decide)} 予定）の前に、契約や支払いをしないでください。補助金が受けられなくなります。<br>・補助金は後払いです。いったん全額をお支払いいただきます。<br>・入金のあとも、効果報告が必要です。</div>
+ <div class="pre faq">${faq.map(f=>`<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join('')}</div>
+ <div class="pre"><div class="rows" style="padding-top:10px;display:flex;flex-direction:column;gap:8px"><p style="font-weight:700;font-size:14px">公式サイト</p>${['top','schedule','faq','gbiz'].map(k=>{const L=LINKLIST.find(x=>x[0]===k);return `<a class="lnk" href="${OFFICIAL[k]}" target="_blank" rel="noopener">${ic('ext','s')}${L[1]}</a>`;}).join('')}
+  <p class="tiny">事務局コールセンター：0570-666-376（IP電話からは 050-3133-3272）。9:30〜17:30、土日祝を除く。</p></div></div>
+ <button class="btn p lg block" data-act="cnav" data-s="home">もどる</button></div>`;}
+const CNOTE={home:['開いた瞬間に、残りの数・締切・作業時間の目安が分かる','申請から入金までの流れを、日付つきで見られる','加点の3項目は「ほぼ必須」として枠を強調する','すでに分かっている情報は、聞かずに見せる'],
+ docs:['写真でよい、と最初に伝える','手元にない場合にかかる時間も表示する','「どこでもらえる？」をその場で案内する','ファイルがなくても「サンプルで試す」で動きを確認できます'],
+ qs:['書類から分からないことだけを聞く','答えた質問には、すぐOKの印がつく','質問は、設定画面で追加・非表示にできる'],
+ proc:['作業時間と、発行までの日数を分けて伝える','転送設定は、テストメールで自動確認する','IDやパスワードは聞かない'],
+ katen:['締切日の時点で完了が条件、と最初に伝える','項目ごとに所要時間と、やり方を表示する','「一緒にやりたい」を選ぶと、担当に通知される'],
+ confirm:['どこから取った情報かを、行ごとに表示する','全部を見直させず、違うところだけ直してもらう'],
+ done:['残っている手続きと締切だけを、短く伝える'],guide:['申請マイページの入力は、お客様ご本人が行う','項目を順番どおりに並べ、コピーするだけにする'],
+ help:['制度の要点を、やさしい言葉で','交付決定前に契約・支払いしない、を目立たせる','公式サイトと事務局の連絡先も載せる'],
+ manual:['使い方は、アプリの画面とデータから自動で作られる','画面ごとに開いて読める。読んだらそのまま移動できる']};
+function client(){const scr=CSCR[cl.screen]();
+ return `<div class="wrap cv"><div class="phone">${scr}</div><aside class="cnote"><div><p class="eyebrow">この画面のねらい</p><ul class="dots" style="margin-top:6px">${CNOTE[cl.screen].map(n=>`<li>${n}</li>`).join('')}</ul></div>
+  <div class="card pad"><h2>スタッフ画面とつながっています</h2><p class="tiny" style="margin:4px 0 10px">ここでアップや回答をすると、スタッフ画面の「${esc(CO.name)}」の案件に反映されます。</p><button class="btn o sm" data-act="open" data-id="c1">スタッフ画面で見る</button></div>
+  <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button class="lnk" data-act="man" data-k="c:${cl.screen}">${ic('q','s')}この画面の使い方（マニュアル）</button><button class="lnk" data-act="creset">お客様の画面を最初の状態にもどす</button></div></aside></div>`;}
+
+/* ================= MODALS ================= */
+const MOD={
+ nudge(m){const c=byId(m.id);return `<h2>催促文（LINE用）</h2><p class="tiny">${esc(c.co)}の不足分だけを並べています。締切と、期限が近い書類は自動で文面に入ります。</p><textarea id="mTxt" aria-label="催促文">${esc(nudgeText(c))}</textarea><div class="m-acts"><button class="btn g" data-act="close">閉じる</button><button class="btn p" data-act="copyta">${ic('copy','s')}コピーする</button></div>`;},
+ offer(m){const o=OPPS.find(x=>x.id===m.o),c=byId(o.cid);return `<h2>提案メモ</h2><p class="tiny">${esc(c.co)}：${o.why}</p><textarea id="mTxt" aria-label="提案メモ">${esc(offerText(o))}</textarea><div class="m-acts"><button class="btn g" data-act="close">閉じる</button><button class="btn o" data-act="msg" data-m="PMSの営業タスクに登録しました">PMSにタスク登録</button><button class="btn p" data-act="copyta">${ic('copy','s')}コピーする</button></div>`;},
+ newcase(m){const n=m.n,wz=`<div class="wz">${[0,1,2].map(i=>`<i class="${i<=Math.min(2,m.step>1?m.step-1:0)?'on':''}"></i>`).join('')}</div>`;
+  if(m.step===0)return `<h2>新しい案件をつくる</h2>${wz}<div class="drop">${ic('card','l')}<p><b>名刺の写真を選んでください</b><br><span class="tiny">会社名と担当者をAIが読み取り、公開情報で残りを埋めます</span></p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><label class="btn p file">${ic('camera','s')}名刺を撮る・選ぶ<input type="file" id="cardFile" data-card="1" accept="image/*"></label><button class="btn o" data-act="wiz" data-step="1">サンプルの名刺で試す</button></div></div><p class="tiny">名刺がないときは、会社名を入力するだけでも作れます。</p>`;
+  if(m.step===1)return `<h2>新しい案件をつくる</h2>${wz}<div class="drop"><div class="read"><span class="spin"></span>名刺を読み取り、公開情報を照会しています</div></div>`;
+  if(m.step===2)return `<h2>内容を確認して、リンクを発行</h2>${wz}<div class="pre"><div class="rows" style="padding-top:2px">${[['会社名',n.co,'card'],['ご担当者',n.rep,'card'],['携帯電話','090-0000-0000','card'],['法人番号','0000000000099','api'],['所在地',n.addr,'api'],['インボイス登録','登録済み','api'],['過去のIT導入補助金','該当なし','api']].map(rw=>`<div class="ir"><span class="k">${rw[0]}</span><span class="v">${esc(rw[1])}</span><span class="s">${SRC[rw[2]]}</span></div>`).join('')}</div></div>
+   <div class="fld"><label for="roundSel">申請する公募回</label><select id="roundSel">${OPENR().map((r,i)=>`<option value="${r.id}" ${i===0?'selected':''}>${r.n}（締切 ${fdw(r.close)}・${leftTxt(r.close)}）</option>`).join('')}</select><p class="tiny">締切までの日数が短い場合は、加点3項目（合計${fmtMin(MUSTMIN)}＋掲載までの日数）に間に合うかを先に確認してください。</p></div>
+   <div class="m-acts"><button class="btn g" data-act="close">やめる</button><button class="btn p" data-act="wiz" data-step="3">専用リンクを発行する</button></div>`;
+  const r=RID(m.rid)||NEXTR();
+  return `<h2>リンクを発行しました</h2>${wz}<p class="tiny">案件に追加し、PMSに顧客を登録しました。下の文面をLINEで送れば完了です。</p><textarea id="mTxt" style="min-height:170px" aria-label="送付文">${esc(`${n.rep.split(' ')[0]}様\n\n${S.t.name}の${staffShort()}です。\nAI導入補助金の申請準備は、下のリンクから進められます（作業の目安は合計2時間ほどです）。\nhttps://hojokin.example/r/${m.cid||'new'}-XXXX\n\n申請の締切は ${fdw(r.close)} です。\nよろしくお願いいたします。`)}</textarea><div class="m-acts"><button class="btn g" data-act="close">閉じる</button><button class="btn p" data-act="copyta">${ic('copy','s')}コピーする</button></div>`;}
+};
+/* ================= 操作マニュアル =================
+   アプリ本体の画面一覧とデータ（PH・KATEN・TIME・ROUNDS・RULES・LINKS・質問）から毎回組み立てる。
+   画面・タブ・モーダルを足したら、MAN に説明を1件足す。足し忘れると MAN_GAPS() に出て、
+   tools/build-manual.js（自動実行フック）がエラーで知らせる。 */
+const SNAV=[['today','today','今日やること'],['cases','cases','案件'],['crm','crm','顧客・提案'],['help','book','お助け情報'],['links','link','連携'],['settings','set','設定']];
+const CTABS=[['check','チェックリスト'],['katen','加点'],['docs','書類とAI読み取り'],['apply','申請データ'],['log','やりとり'],['offer','提案']];
+const CSCR={home:cHome,docs:cDocs,qs:cQs,proc:cProc,katen:cKaten,confirm:cConfirm,done:cDone,guide:cGuide,help:cHelp,manual:cManual};
+const TSUM=()=>TIME.docs+TIME.qs+TIME.gbiz+TIME.mail+MUSTMIN+TIME.confirm;
+const MAN={
+ today:{g:'staff',t:'今日やること',open:{v:'staff',s:'today'},
+  why:'その日に対応することが、優先度の高い順に並びます。ログインしたら最初に開く画面です。',
+  steps:()=>['上から順に読み、各行のボタン（「案件を開く」「催促文を見る」など）で対応します。','対応が終わったら、右の ✓ を押して「済み」にします。',`右側で、受付中の公募回（次は${NEXTR().n}・締切 ${fdw(NEXTR().close)}）と、ステップ別の件数を確認できます。`,'「今日、自動で済んだこと」には、システムが代わりに済ませた作業が出ます。'],
+  more:()=>['ここに出る項目の種類：'+Object.values(TKIND).map(k=>k[2]).join('・')]},
+ cases:{g:'staff',t:'案件',open:{v:'staff',s:'cases'},
+  why:'すべての案件を、ステップ別のボード、または一覧表で見る画面です。',
+  steps:['上のタイル（すべて・お客様待ち・自社の対応・期限に注意）を押すと絞り込めます。','会社名の一部を入れると検索できます。','「ボード」と「一覧」で表示を切り替えます。カードや行を押すと、案件の詳細が開きます。'],
+  more:()=>['ボードの列：'+BCOL.join(' → ')]},
+ case:{g:'staff',t:'案件の詳細',open:{v:'staff',s:'cases',c:'c1',t:'check'},
+  why:'1社分の日程・やること・書類・加点をまとめて見る画面です。',
+  steps:['上部の6ステップで、いまどこにいるか（今ここ）と、次の期限を確認します。','「このステップで、自社がやること／お客様がやること」を見て対応します。','右上の「次へ」で次のステップに進めます。不足があると進まず、残っているものが表示されます。','「催促文をつくる」を押すと、不足分だけを並べたLINE用の文面ができます。'],
+  more:()=>['タブ：'+CTABS.map(t=>t[1]).join('・')]},
+ 'tab:check':{g:'staff',t:'案件：チェックリスト',open:{v:'staff',s:'cases',c:'c6',t:'check'},
+  why:'申請までの準備と、申請後の手続きの「済・未」を一覧で確認するタブです。',
+  steps:['「申請まで」に、書類・自動取得・お客様の回答・事前のお手続き・加点の状況が並びます。','「申請してから入金まで」に、提出から入金までの手続きが並びます。','右の「次の一手」に、いまやるべきことが出ます。PMSのタスクはステップに合わせて自動で作られます。']},
+ 'tab:katen':{g:'staff',t:'案件：加点',open:{v:'staff',s:'cases',c:'c5',t:'katen'},
+  why:'審査で有利になる加点項目の進み具合を確認するタブです。',
+  steps:()=>[`ほぼ必須の${MUST.length}項目（${MUST.map(k=>k.name).join('・')}）の状況を確認します。合計 ${fmtMin(MUSTMIN)} が目安です。`,'締切日の時点で完了していることが条件です。未のものは「加点の案内文をつくる」でお客様に依頼します。',`そのほかの${KATEN.length-MUST.length}項目は、当てはまれば加点になります。`]},
+ 'tab:docs':{g:'staff',t:'案件：書類とAI読み取り',open:{v:'staff',s:'cases',c:'c3',t:'docs'},
+  why:'届いた書類をAIが読み取った結果と、照合の結果を確認するタブです。',
+  steps:()=>[`届いた書類（${DOCS.join('・')}）をAIが読み取り、公開情報・名刺・回答と照合します。`,'食い違いがあると黄色で表示されます。どちらの値を使うかを押して確定します。','証明書の発行から3か月までの残り日数が、バーで表示されます。']},
+ 'tab:apply':{g:'staff',t:'案件：申請データ',open:{v:'staff',s:'cases',c:'c3',t:'apply'},
+  why:'申請に使う項目を、コピーしやすい形で並べたタブです。',
+  steps:['各行の「コピー」で、値を申請マイページに貼り付けられます。','申請マイページの入力は、お客様ご本人が行います。「入力ガイドをお客様に送る」で、同じ項目をお客様の画面に順番どおりに表示します。','「CSVで書き出す」で、まとめて出力できます。']},
+ 'tab:log':{g:'staff',t:'案件：やりとり',open:{v:'staff',s:'cases',c:'c6',t:'log'},
+  why:'案件の出来事を時系列で見るタブです。',
+  steps:['スタッフ・お客様・自動の出来事が、色分けして並びます。','事務局からのメールは、AIの要約つきで記録されます。','下の欄からメモを残せます。']},
+ 'tab:offer':{g:'staff',t:'案件：提案',open:{v:'staff',s:'cases',c:'c4',t:'offer'},
+  why:'この案件で、いまできる提案を確認するタブです。',
+  steps:['保守の更新・追加のご提案・ご紹介のお願いなど、きっかけがあるとここに出ます。','「提案メモをつくる」で文面を作り、PMSの営業タスクに登録できます。']},
+ crm:{g:'staff',t:'顧客・提案',open:{v:'staff',s:'crm'},
+  why:'申請で集めた情報を、そのまま顧客台帳として使う画面です。',
+  steps:['「いま提案できるお客様」に、提案のきっかけが自動で並びます。','顧客台帳の行を押すと、その会社の案件が開きます。']},
+ help:{g:'staff',t:'お助け情報',open:{v:'staff',s:'help'},
+  why:'制度の要点・日程・加点・公式サイトをまとめた画面です。お客様に説明するときに使います。',
+  steps:()=>['いちばん上に、制度の概要と次の締切が出ます。',`「公募回のスケジュール」で、${ROUNDS.length}回分の締切・交付決定・期限と、確認の状態（公式で確認／予定・要確認）を見られます。`,`「加点項目の一覧と所要時間」に${KATEN.length}項目が並びます。`,`公式サイトへのリンク（${LINKLIST.length}件）と、事務局コールセンターの番号も載せています。`]},
+ links:{g:'staff',t:'連携',open:{v:'staff',s:'links'},
+  why:'普段使っているツールとつなぎ、転記や通知を自動にする画面です。',
+  steps:()=>[`${LINKS.length}種類の連携先を、スイッチでオン・オフします。`,`「自動で動くルール」（${RULES.length}件）も、スイッチでオン・オフできます。`]},
+ settings:{g:'staff',t:'設定',open:{v:'staff',s:'settings'},
+  why:'自社の名前と色、加点の進め方、お客様に聞く質問を決める画面です。変更はお客様の画面にすぐ反映されます。',
+  steps:()=>['会社名・担当者名・事務局メールの転送先と、色を選びます。右側に、お客様からの見え方が出ます。','加点3項目の進め方（画面共有で一緒に操作する／お客様に案内を見て操作してもらう）を選びます。','公募回の日程は、提供元がまとめて更新します。ここでは確認だけできます。',`お客様に聞く質問（いま${S.questions.filter(q=>q.on).length}問）を、オン・オフ・追加できます。`]},
+ newcase:{g:'staff',t:'新しい案件をつくる',open:{v:'staff',s:'today',m:{type:'newcase',step:2,n:NEWCO[0]}},
+  why:'名刺1枚から案件を作り、お客様に送る専用リンクを発行します。左上の「新しい案件」から開きます。',
+  steps:['名刺の写真を選ぶ（または「サンプルの名刺で試す」）と、AIが会社名と担当者を読み取ります。','法人番号などの公開情報で、残りの会社情報が自動で入ります。内容を確認し、申請する公募回を選びます。','「専用リンクを発行する」を押すと、LINEで送る文面ができます。コピーして送れば完了です。']},
+ nudge:{g:'staff',t:'催促文',open:{v:'staff',s:'cases',c:'c2',m:{type:'nudge',id:'c2'}},
+  why:'不足しているものだけを並べた、LINE用の文面をつくります。',
+  steps:['案件の詳細や「今日やること」の「催促文をつくる」から開きます。','締切と、期限が近い書類が自動で文面に入ります。必要なら書き直して「コピーする」を押します。']},
+ offer:{g:'staff',t:'提案メモ',open:{v:'staff',s:'crm',m:{type:'offer',o:'o1'}},
+  why:'提案のきっかけから、お客様に送る文面をつくります。',
+  steps:['「顧客・提案」や案件の「提案」タブで「提案メモをつくる」を押します。','文面を確認し、コピーするか、PMSの営業タスクに登録します。']},
+ 'c:home':{g:'client',t:'やることリスト（お客様のホーム）',open:{v:'client',cs:'home'},tm:()=>'全部で'+fmtMin(TSUM()),
+  why:'お客様が専用リンクを開くと最初に出る画面です。残りの数・締切・作業時間の目安が分かります。',
+  steps:['やることを、好きな順番で1つずつ押して進めます。途中で閉じても続きから再開できます。','「申請から入金までの流れ」を開くと、6つのステップと日付が見られます。','すでに分かっている情報は、自動で入力済みです。分からないことは「LINEで質問」から担当者に聞けます。']},
+ 'c:docs':{g:'client',t:'書類をアップする',open:{v:'client',cs:'docs'},tm:()=>'約'+TIME.docs+'分（手元にあれば）',
+  why:'申請に必要な書類をアップする画面です。写真でも大丈夫です。',
+  steps:()=>[`${DOCS.join('・')}の${DOCS.length}点を、撮影するかファイルを選んでアップします。`,'アップすると、AIが読み取って会社情報を自動で入力します。','手元にないときは「まだ手元にない」を押せば後日でも大丈夫です。「どこでもらえる？」で取り方が分かります。']},
+ 'c:qs':{g:'client',t:'質問に答える',open:{v:'client',cs:'qs'},tm:()=>'約'+TIME.qs+'分',
+  why:'書類からは分からないことだけに答える画面です。',
+  steps:()=>[`質問は${S.questions.filter(q=>q.on).length}つです：${S.questions.filter(q=>q.on).map(q=>q.label).join('／')}。`,'入力は自動で保存されます。答えた質問にはOKの印がつきます。']},
+ 'c:proc':{g:'client',t:'事前のお手続き',open:{v:'client',cs:'proc'},tm:()=>`gBizID 約${TIME.gbiz}分＋メール 約${TIME.mail}分`,
+  why:'gBizIDプライムと、補助金の連絡用メールを準備する画面です。IDやパスワードを当社に伝える必要はありません。',
+  steps:['gBizIDプライムの状況（取得済み・申請中・これから）を選びます。まだの場合は公式ページから申請します。','連絡用のメールアドレスを入れ、表示された当社のアドレスへの転送を設定します。','「テストメールで転送を確認する」を押すと、転送できているかを自動で確認します。']},
+ 'c:katen':{g:'client',t:'審査で有利になる3つの登録（加点）',open:{v:'client',cs:'katen'},tm:()=>'合計'+fmtMin(MUSTMIN),
+  why:'ほぼ必須の加点3項目を登録する画面です。締切日の時点で3つとも済んでいることが条件です。',
+  steps:()=>[...MUST.map((k,i)=>`${'①②③④⑤'[i]} ${k.name}（${k.time}）：${k.how.join(' → ')}`),'項目ごとに「済み・これから・一緒にやりたい」を選びます。「一緒にやりたい」を選ぶと、担当者から画面共有の日程の連絡が来ます。']},
+ 'c:confirm':{g:'client',t:'内容を確認して送信',open:{v:'client',cs:'confirm'},tm:()=>'約'+TIME.confirm+'分',
+  why:'自動で入った内容を確認して、当社に送る画面です。',
+  steps:['行ごとに、どこから取った情報か（公開情報・名刺・書類・ご回答）が表示されます。','違うところだけ「修正」を押して直します。','「上の内容で間違いありません」にチェックし、「この内容で送信する」を押します。まだそろっていないものがあっても送信できます。']},
+ 'c:done':{g:'client',t:'送信したあと',open:{v:'client',cs:'done'},
+  why:'送信が終わると出る画面です。残っているお手続きと締切だけを短く表示します。',
+  steps:['残っているものがあれば、締切までに済ませます。「やることリストにもどる」で続きができます。']},
+ 'c:guide':{g:'client',t:'申請マイページの入力ガイド',open:{v:'client',cs:'guide'},
+  why:'担当者から届く、申請マイページへの入力の手引きです。',
+  steps:['申請マイページを開き、上から順に「コピー」して貼り付けます。','入力と宣誓・提出は、お客様ご本人が行います。']},
+ 'c:help':{g:'client',t:'AI導入補助金のきほん',open:{v:'client',cs:'help'},
+  why:'制度のしくみ・いまどこ・大事な注意・よくある質問・公式サイトをまとめた画面です。',
+  steps:['「いまどこ？」で、6つのステップのどこにいるかと日付を確認できます。','交付決定の前に契約や支払いをしないでください。補助金が受けられなくなります。','よくある質問を押すと答えが開きます。']},
+ 'c:manual':{g:'client',t:'このページの使い方',open:{v:'client',cs:'manual'},
+  why:'お客様向けの使い方を、画面ごとにまとめたページです。ホームのいちばん下から開けます。',
+  steps:['知りたい画面の名前を押すと、手順が開きます。「この画面へ」で、その画面に移れます。']}
+};
+const MAN_KEYS=()=>Object.keys(MAN);
+const mid=k=>'m-'+k.replace(/[^a-z0-9]/gi,'-');
+const mf=x=>typeof x==='function'?x():x;
+/* 画面・タブ・モーダルの一覧と MAN を突き合わせる。説明のない画面と、もう存在しない画面の説明を返す */
+function MAN_GAPS(){const need=SNAV.map(n=>n[0]).concat(['case'],CTABS.map(t=>'tab:'+t[0]),Object.keys(CSCR).map(k=>'c:'+k),Object.keys(MOD));
+ const miss=need.filter(k=>!MAN[k]).map(k=>'説明なし:'+k),stale=MAN_KEYS().filter(k=>need.indexOf(k)<0).map(k=>'画面なし:'+k);return miss.concat(stale);}
+function MAN_VER(){const s=JSON.stringify([MAN,PH,PH_DO,KATEN,TIME,ROUNDS,RULES,LINKS,DOCS,S.questions.map(q=>[q.label,q.on])],(k,v)=>typeof v==='function'?String(v):v);let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).slice(-6);}
+function manApply(o){S.view=o.v;if(o.s)S.staff=o.s;S.caseId=o.c||null;S.tab=o.t||'check';S.block=null;
+ if(o.cs){cl.screen=o.cs;cl.help=null;cl.editing=null;cl.khow=null;}S.modal=o.m?JSON.parse(JSON.stringify(o.m)):null;}
+/* その画面を実際に描画し、ボタンの文言を拾う（画面を変えるとここも変わる） */
+function manBtns(k){const o=MAN[k].open,keep={view:S.view,staff:S.staff,caseId:S.caseId,tab:S.tab,block:S.block,modal:S.modal,cs:cl.screen,help:cl.help,ed:cl.editing,kh:cl.khow};
+ try{manApply(o);const html=o.m?MOD[o.m.type](S.modal):o.v==='staff'?staffBody():CSCR[cl.screen]();const t=document.createElement('template');t.innerHTML=html;const out=[];
+  t.content.querySelectorAll('.btn,.seg button,[role=tab]').forEach(b=>{const x=b.textContent.replace(/\s+/g,' ').trim();if(x&&x.length<=26&&out.indexOf(x)<0)out.push(x);});return out.slice(0,14);}
+ catch(e){return [];}
+ finally{Object.assign(S,{view:keep.view,staff:keep.staff,caseId:keep.caseId,tab:keep.tab,block:keep.block,modal:keep.modal});Object.assign(cl,{screen:keep.cs,help:keep.help,editing:keep.ed,khow:keep.kh});}}
+function manSec(k){const e=MAN[k],steps=mf(e.steps)||[],more=mf(e.more)||[],btns=manBtns(k);
+ return `<section class="card mansec" id="${mid(k)}" data-mkey="${k}"><div class="mh"><div><p class="eyebrow">${e.g==='staff'?'スタッフ':'お客様'}${e.tm?'・作業時間 '+mf(e.tm):''}</p><h3>${e.t}</h3><p class="bodyt">${mf(e.why)}</p></div><button class="btn o sm noprint" data-act="manopen" data-k="${k}">この画面を開く</button></div>
+  <div class="mshot" data-shot="${k}"></div>
+  <ol class="msteps">${steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+  ${more.length?`<ul class="dots">${more.map(s=>`<li>${s}</li>`).join('')}</ul>`:''}
+  ${btns.length?`<div class="mbtn"><span class="tiny">この画面のボタン</span>${btns.map(b=>`<span class="chip mute">${esc(b)}</span>`).join('')}</div>`:''}</section>`;}
+const MCH=[['m-start','はじめに','today'],['m-staff','スタッフ編','cases'],['m-client','お客様編','crm'],['m-data','資料編','book']];
+function manIndex(g){return `<div class="mindex">${MAN_KEYS().filter(k=>MAN[k].g===g).map(k=>`<button class="lnk" data-act="mjump" data-k="${k}">${MAN[k].t}</button>`).join('')}</div>`;}
+function manualV(){const gaps=MAN_GAPS(),ver=MAN_VER(),nr=NEXTR();
+ const tbl=(h,rows,w)=>`<div class="card tscroll"><table style="min-width:${w||560}px"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+ const ctime=[['書類のアップ（手元にあれば）',fmtMin(TIME.docs)],['質問への回答',fmtMin(TIME.qs)],['gBizIDプライムの申請',fmtMin(TIME.gbiz)],['連絡用メールと転送設定',fmtMin(TIME.mail)]].concat(MUST.map(k=>['加点：'+k.name,k.time]),[['内容の確認と送信',fmtMin(TIME.confirm)],['<b>合計の目安</b>','<b>'+fmtMin(TSUM())+'</b>']]);
+ return `<div class="wrap st man"><aside class="side noprint" aria-label="マニュアルの目次">${MCH.map(c=>`<button data-act="mjump" data-id="${c[0]}">${ic(c[2])}${c[1]}</button>`).join('')}</aside>
+ <div class="main" data-manual="1" data-ver="${ver}" data-keys="${MAN_KEYS().join(' ')}" data-gaps="${esc(gaps.join(' '))}"><!--MANUAL-START-->
+ <div class="ph"><div><h1>操作マニュアル</h1><p class="sub">このマニュアルは、アプリ本体の画面とデータから毎回自動で作られます。画面・日程・加点・質問を変えると、ここも同時に変わります。</p></div><div class="r noprint"><button class="btn o sm" data-act="print">${ic('doc','s')}印刷・PDFで保存</button></div></div>
+ <p class="tiny">版 ${ver}・${MAN_KEYS().length}画面・表示ブランド：${esc(S.t.name)}</p>
+ ${gaps.length?`<div class="card note w">${ic('alert','l')}<div><h3>説明がまだない画面があります</h3><p>${esc(gaps.join('、'))}</p></div></div>`:''}
+ <h2 class="sec-h" id="m-start">はじめに</h2>
+ <div class="card pad"><p class="bodyt">AI導入補助金コンシェルジュは、申請に必要な書類と情報を、専用リンク1本で集めて進行を管理するツールです。スタッフは「スタッフ画面」、お客様はスマホで「お客様の画面」を使います。</p>
+  <ol class="msteps" style="margin-top:10px"><li>スタッフが名刺から案件を作り、専用リンクをLINEで送ります。</li><li>お客様がリンクを開き、書類のアップ・質問・お手続き・加点を進めます（全部で${fmtMin(TSUM())}が目安）。</li><li>スタッフは「今日やること」に出る項目を上から片づけ、申請まで進めます。</li></ol></div>
+ ${tbl(['ステップ','ひとことで','自社がやること','お客様がやること'],PH.map((p,i)=>[`<b>${i+1}. ${p}</b>`,PH_SHORT[i],PH_DO[i].s.join('<br>'),PH_DO[i].c.join('<br>')]),760)}
+ <p class="tiny">次の締切：${nr.n} ${fdw(nr.close)}（${leftTxt(nr.close)}）。日程は「資料編」を見てください。</p>
+ <h2 class="sec-h" id="m-staff">スタッフ編</h2>${manIndex('staff')}
+ ${MAN_KEYS().filter(k=>MAN[k].g==='staff').map(manSec).join('')}
+ <h2 class="sec-h" id="m-client">お客様編</h2>${manIndex('client')}
+ ${MAN_KEYS().filter(k=>MAN[k].g==='client').map(manSec).join('')}
+ <h2 class="sec-h" id="m-data">資料編</h2>
+ <h3 class="mh3">お客様の作業時間の目安</h3>${tbl(['作業','目安'],ctime,420)}
+ <h3 class="mh3">公募回の日程</h3>${tbl(['公募回','締切','交付決定','実績報告の期限','入金の目安','確認'],ROUNDS.map(r=>[`<b>${r.n}</b>`,fdw(r.close),fd(r.decide),fd(r.end),r.pay,SRCCHIP[r.src]]),700)}
+ <h3 class="mh3">加点項目と所要時間</h3>${tbl(['項目','所要時間','担当','条件'],KATEN.map(k=>[(k.must?'<span class="chip solid">ほぼ必須</span> ':'')+k.name,k.time,esc(k.who),k.cond]),760)}
+ <h3 class="mh3">自動で動くルール</h3>${tbl(['きっかけ','システムがすること','状態'],RULES.map((r,i)=>[r[0],r[1],S.rules[i]?'<span class="chip ok">オン</span>':'<span class="chip mute">オフ</span>']),620)}
+ <h3 class="mh3">連携先</h3>${tbl(['連携先','できること','状態'],LINKS.map(l=>[l.n,l.d,S.links[l.id]?'<span class="chip ok">接続中</span>':'<span class="chip mute">未接続</span>']),620)}
+ <h3 class="mh3">お客様に聞く質問</h3>${tbl(['質問','表示'],S.questions.map(q=>[esc(q.label),q.on?'<span class="chip ok">表示</span>':'<span class="chip mute">非表示</span>']),420)}
+ <p class="tiny">所要時間・入金の目安は当社の見込みです。日程と加点の条件は、公式サイトで確認してください。</p>
+ <!--MANUAL-END--></div></div>`;}
+/* お客様のスマホ画面の中の「このページの使い方」 */
+function cManual(){const ks=MAN_KEYS().filter(k=>MAN[k].g==='client'&&k!=='c:manual'&&k!=='c:done');
+ return pBar('このページの使い方')+`<div class="p-body"><p class="p-lead">画面ごとの使い方です。知りたいところを押してください。</p>
+ <div class="pre faq">${ks.map(k=>{const e=MAN[k];return `<details><summary>${e.t}${e.tm?`<span class="tiny"> ${mf(e.tm)}</span>`:''}</summary><p>${mf(e.why)}</p><ol class="msteps">${(mf(e.steps)||[]).map(s=>`<li>${s}</li>`).join('')}</ol>${k!=='c:home'?`<p><button class="lnk" data-act="cnav" data-s="${e.open.cs}">この画面へ</button></p>`:''}</details>`;}).join('')}</div>
+ <button class="btn p lg block" data-act="cnav" data-s="home">もどる</button></div>`;}
+
+function renderModal(){const m=$('#modal');if(!S.modal){m.hidden=true;m.innerHTML='';return;}
+ m.hidden=false;m.innerHTML=`<div class="modal-bg" data-act="close"></div><div class="modal-box" role="dialog" aria-modal="true"><button class="x" data-act="close" aria-label="閉じる">${ic('x','s')}</button>${MOD[S.modal.type](S.modal)}</div>`;}
+let tt;function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{e.hidden=true;},2200);}
+function copy(text,after){const ok=()=>toast(after||'コピーしました');
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(ok,()=>toast('コピーできませんでした。文面を選択してコピーしてください'));}else toast('文面を選択してコピーしてください');}
+
+/* ================= ACTIONS ================= */
+function setHash(){try{history.replaceState(null,'','#'+S.view);}catch(e){}}
+function getHolder(p){const ks=p.split('.'),last=ks.pop();return[ks.reduce((o,k)=>o[k],S),last];}
+const A={
+ view(d){S.view=d.v;setHash();render();window.scrollTo(0,0);},
+ go(d){S.view=d.v;if(d.s){S.staff=d.s;S.caseId=null;}setHash();render();window.scrollTo(0,0);},
+ snav(d){S.staff=d.s;S.caseId=null;S.block=null;render();window.scrollTo(0,0);},
+ open(d){S.view='staff';S.staff='cases';S.caseId=d.id;S.tab=d.tab||'check';S.block=null;setHash();render();window.scrollTo(0,0);},
+ closecase(){S.caseId=null;S.block=null;render();},
+ tab(d){S.tab=d.t;render();},
+ filter(d){S.filter=d.f;render();},
+ mode(d){S.mode=d.m;render();},
+ todo(d){const a=TODAY().find(x=>x.id===d.a);if(a.act==='nudge'){S.modal={type:'nudge',id:a.cid};renderModal();}else A.open({id:a.cid,tab:a.tab});},
+ tdone(d){S.done[d.a]=true;toast('済みにしました');render();},
+ advance(d){const c=byId(d.id);if(c.phase<=1&&c.miss.length){S.block=c.id;S.view='staff';S.staff='cases';S.caseId=c.id;S.tab='check';render();return;}
+  if(c.phase<6){if(c===MIDORI)c.manual=c.phase+1;else c.phase++;}
+  const np=c===MIDORI?c.manual:c.phase;S.block=null;render();toast(`「${BCOL[np]}」に進めました。PMSにタスクを作成しました`);},
+ fixc(d){const c=byId(d.id);c.fixed=true;c.miss=[];S.done.a3=true;S.block=null;render();toast('確定しました。申請データに反映しました');},
+ nudge(d){S.modal={type:'nudge',id:d.id};renderModal();},
+ offer(d){S.modal={type:'offer',o:d.o};renderModal();},
+ guide(d){if(d.id==='c1')cl.guide=true;toast('入力ガイドのリンクを用意しました。LINEで送れます');},
+ newcase(){S.modal={type:'newcase',step:0,n:NEWCO[(seq-10)%NEWCO.length]};renderModal();},
+ wiz(d){const step=+d.step;if(step===1){S.modal.step=1;renderModal();setTimeout(()=>{if(S.modal&&S.modal.type==='newcase'){S.modal.step=2;renderModal();}},1300);return;}
+  if(step===3){const n=S.modal.n,sel=$('#roundSel'),rid=sel?sel.value:NEXTR().id;const c=mk(n.co,n.ind,n.rep,n.addr,n.emp,1,'client',rid,Object.assign({},NOTHING,{kat:Object.assign({},KNONE),miss:['書類3点','質問4つ','お手続き2つ','加点3項目'],upd:'たった今'}));CASES.push(c);S.modal={type:'newcase',step:3,cid:c.id,n:n,rid:rid};render();}},
+ close(){S.modal=null;renderModal();},
+ copy(d){copy(d.text);},
+ copyta(){const t=$('#mTxt');if(t){t.select();copy(t.value);}},
+ msg(d){toast(d.m);},
+ tog(d){const h=getHolder(d.k);h[0][h[1]]=!h[0][h[1]];render();},
+ brand(d){S.t.brand=+d.i;render();},
+ km(d){S.katenMode=d.v;render();},
+ addq(){const i=$('#newQ'),v=(i.value||'').trim();if(!v){toast('質問文を入力してください');i.focus();return;}S.questions.push({id:'qx'+Date.now(),label:v,type:'text',ph:'',on:true,custom:true});render();toast('質問を追加しました。お客様の画面に出ます');},
+ cnav(d){cl.screen=d.s;cl.help=null;cl.editing=null;cl.khow=null;render();window.scrollTo(0,0);},
+ upload(d){const i=+d.i;cl.docs[i]='reading';cl.help=null;render();setTimeout(()=>{if(cl.docs[i]==='reading'){cl.docs[i]='got';render();}},1200);},
+ later(d){cl.docs[+d.i]='later';cl.help=null;render();},
+ redo(d){cl.docs[+d.i]='none';render();},
+ how(d){cl.help=cl.help===+d.i?null:+d.i;render();},
+ seg(d){cl.ans[d.k]=d.v;render();},
+ kseg(d){cl.kat[d.k]=d.v;render();if(d.v==='一緒にやりたい')toast('担当者に通知しました');},
+ khow(d){cl.khow=cl.khow===d.k?null:d.k;render();},
+ fwdtest(){if(!cl.ans.mail){cl.fwd='need';render();return;}cl.fwd='checking';render();setTimeout(()=>{if(cl.fwd==='checking'){cl.fwd='ok';render();}},1300);},
+ fix(d){cl.editing=+d.i;render();const e=$('#fix'+d.i);if(e)e.focus();},
+ fixok(){cl.editing=null;render();},
+ send(){cl.sent=true;cl.screen='done';render();window.scrollTo(0,0);},
+ man(d){S.view='manual';S.modal=null;setHash();render();manScroll(d.k?mid(d.k):null);},
+ mjump(d){manScroll(d.id||mid(d.k));},
+ manopen(d){manApply(MAN[d.k].open);setHash();render();window.scrollTo(0,0);},
+ print(){window.print();},
+ creset(){Object.assign(cl,{screen:'home',docs:['none','none','none'],ans:{},kat:{},fwd:'no',sent:false,fixes:{},editing:null,help:null,guide:false,agree:false,khow:null});MIDORI.manual=0;render();toast('最初の状態にもどしました');}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;const f=A[t.dataset.act];if(f)f(t.dataset,t);});
+document.addEventListener('input',e=>{const t=e.target;
+ if(t.id==='caseQ'){S.q=t.value.trim();$('#caseList').innerHTML=caseList();return;}
+ if(!t.dataset||!t.dataset.bind)return;const h=getHolder(t.dataset.bind);h[0][h[1]]=t.type==='checkbox'?t.checked:t.value;
+ if(t.dataset.bind.indexOf('t.')===0){const p=$('#brandPrev');if(p)p.innerHTML=brandPrev();return;}
+ if(t.dataset.bind==='client.ans.mail'&&cl.fwd!=='no'){cl.fwd='no';}
+ const qe=t.closest('.q[data-q]');if(qe){const q=S.questions.find(x=>x.id===qe.dataset.q);if(q)qe.classList.toggle('okq',qDone(q));}
+ if(t.dataset.re||t.tagName==='SELECT')render();});
+document.addEventListener('change',e=>{const t=e.target;
+ if(t.dataset&&t.dataset.file!=null){A.upload({i:t.dataset.file});return;}
+ if(t.dataset&&t.dataset.card){A.wiz({step:1});return;}
+ if(t.id==='tenantSel'){S.t=Object.assign({},TENANTS[t.value]);render();toast(t.value==='other'?'他社で使った場合の見え方に切り替えました':'スマートコンテンツの表示にもどしました');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.modal)A.close();});
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(['overview','staff','client','manual'].indexOf(v)>-1&&v!==S.view){S.view=v;render();}});
+
+function manScroll(id){const e=id&&document.getElementById(id);if(e)e.scrollIntoView({block:'start'});else window.scrollTo(0,0);}
+function render(){syncMidori();applyBrand();
+ document.querySelectorAll('#views button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.v===S.view)));
+ $('#logoMark').innerHTML=ic('star');
+ $('#app').innerHTML=S.view==='overview'?overview():S.view==='staff'?staff():S.view==='manual'?manualV():client();
+ renderModal();}
+const h0=decodeURIComponent(location.hash.slice(1));if(['overview','staff','client','manual'].indexOf(h0)>-1)S.view=h0;
+/* #open/画面名 で、その画面を直接開く（マニュアルのリンクと画面写真の自動撮影に使う） */
+if(h0.indexOf('open/')===0&&MAN[h0.slice(5)])manApply(MAN[h0.slice(5)].open);
+render();
+})();
+</script>
+
+</html>
